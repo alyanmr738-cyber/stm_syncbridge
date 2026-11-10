@@ -131,6 +131,35 @@ describe("end-to-end payloads with Gate A", () => {
     expect(writes.some((w) => w.fn === "createOpportunity")).toBe(false);
   });
 
+  it("JOB_CLOSED does not move GHL when Jobber status is still today", async () => {
+    const { fetchJobberJob } = await import("@/lib/jobber/ops");
+    vi.mocked(fetchJobberJob).mockResolvedValueOnce({
+      id: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      jobStatus: "today",
+      client: { id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" },
+    });
+    await processSyncEvent({
+      syncEventId: "00000000-0000-0000-0000-000000000028",
+      eventKind: "JOB_CLOSED",
+      source: "jobber",
+      providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+    });
+    expect(writes.some((w) => w.fn === "moveOpportunityStage")).toBe(false);
+  });
+
+  it("JOB_CLOSED does not trust a closed payload when Jobber fetch returns no live job", async () => {
+    const { fetchJobberJob } = await import("@/lib/jobber/ops");
+    vi.mocked(fetchJobberJob).mockResolvedValueOnce(null);
+    await processSyncEvent({
+      syncEventId: "00000000-0000-0000-0000-000000000029",
+      eventKind: "JOB_CLOSED",
+      source: "jobber",
+      providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      payload: { jobStatus: "closed" },
+    });
+    expect(writes.some((w) => w.fn === "moveOpportunityStage")).toBe(false);
+  });
+
   it("JOB_CLOSED moves to Job Completed and does not send reviews when Gate C is off", async () => {
     const { findJobLink } = await import("@/lib/sync/match-store");
     vi.mocked(findJobLink).mockResolvedValueOnce({

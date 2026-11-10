@@ -394,6 +394,23 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
 export async function syncJobClosed(event: LoadedEvent): Promise<void> {
   const env = getEnv();
   const jobId = event.providerEntityId ?? event.id;
+  const encoded = isJobberEncodedId(jobId);
+  const live = encoded ? await fetchJobberJob(jobId) : null;
+  const reportedStatus = encoded
+    ? live?.jobStatus
+    : String(event.payload.jobStatus ?? "");
+  if (!jobClosed(reportedStatus)) {
+    const supabaseSkip = getSupabaseAdmin();
+    await supabaseSkip?.from("job_links").upsert(
+      {
+        jobber_job_id: jobId,
+        last_job_status: live?.jobStatus ?? "not_closed",
+        last_synced_at: new Date().toISOString(),
+      },
+      { onConflict: "jobber_job_id" }
+    );
+    return;
+  }
   const existing = await findJobLink({ jobberJobId: jobId });
   const supabase = getSupabaseAdmin();
 

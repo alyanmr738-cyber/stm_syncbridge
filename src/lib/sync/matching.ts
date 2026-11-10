@@ -71,7 +71,7 @@ export function quoteInvoiceNoteBody(kind: "quote" | "invoice", opts: {
 }
 
 export function jobClosed(status?: string | null): boolean {
-  return /close|complete|done/i.test(status ?? "");
+  return /\b(closed?|complete[d]?|done)\b/i.test(status ?? "");
 }
 
 export function jobCancelled(status?: string | null): boolean {

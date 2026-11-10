@@ -27,7 +27,7 @@ export async function persistAndEnqueue(
     .maybeSingle();
 
   if (existing?.id) {
-    return { eventId: existing.id, queued: existing.status === "queued" };
+    return { eventId: existing.id, queued: false };
   }
 
   const { data, error } = await supabase
@@ -45,8 +45,16 @@ export async function persistAndEnqueue(
     .select("id")
     .single();
   if (error) {
-    if (error.code === "23505" && existing?.id) {
-      return { eventId: existing.id, queued: false };
+    if (error.code === "23505") {
+      const { data: raced } = await supabase
+        .from("sync_events")
+        .select("id, status")
+        .eq("source", event.source)
+        .eq("provider_event_key", event.providerEventKey)
+        .maybeSingle();
+      if (raced?.id) {
+        return { eventId: raced.id, queued: false };
+      }
     }
     throw new Error(error.message);
   }

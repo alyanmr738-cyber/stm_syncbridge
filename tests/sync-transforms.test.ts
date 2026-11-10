@@ -92,6 +92,7 @@ describe("jobs and documents", () => {
   it("treats closed/complete as completion", () => {
     expect(jobClosed("closed")).toBe(true);
     expect(jobClosed("active")).toBe(false);
+    expect(jobClosed("today")).toBe(false);
     expect(jobCancelled("cancelled")).toBe(true);
     expect(jobStageForStatus("closed")).toBe("completed");
     expect(jobStageForStatus("cancelled")).toBe("cancelled");
