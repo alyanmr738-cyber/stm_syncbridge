@@ -179,4 +179,60 @@ describe("end-to-end payloads with Gate A", () => {
       message: "Customer needs pumping next week",
     });
   });
+
+  it("GHL ContactUpdate calls Jobber clientEdit then reconciles GHL from Jobber", async () => {
+    const { matchCustomer } = await import("@/lib/sync/match-store");
+    const { editJobberClient, fetchJobberClient } = await import("@/lib/jobber/ops");
+    vi.mocked(matchCustomer).mockResolvedValueOnce({
+      kind: "provider",
+      jobberClientId: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x",
+    });
+    await processSyncEvent({
+      syncEventId: "00000000-0000-0000-0000-000000000026",
+      eventKind: "ContactUpdate",
+      source: "ghl",
+      providerEntityId: "ghl-1",
+      payload: {
+        id: "ghl-1",
+        firstName: "Pat",
+        lastName: "Pilot",
+        email: "pat@example.com",
+        phone: "+19415550100",
+      },
+    });
+    expect(editJobberClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x",
+        email: "pat@example.com",
+      })
+    );
+    expect(fetchJobberClient).toHaveBeenCalled();
+    expect(writes.find((w) => w.fn === "upsertGhlContact")?.args).toMatchObject({
+      id: "ghl-1",
+    });
+  });
+
+  it("Jobber JOB_UPDATE with an existing opportunity does not create another", async () => {
+    const { findJobLink } = await import("@/lib/sync/match-store");
+    const { fetchJobberJob } = await import("@/lib/jobber/ops");
+    vi.mocked(fetchJobberJob).mockResolvedValueOnce({
+      id: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      jobStatus: "active",
+      title: "Pump",
+      client: { id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" },
+    });
+    vi.mocked(findJobLink).mockResolvedValueOnce({
+      id: "jl",
+      ghl_opportunity_id: "opp-existing",
+      last_job_status: "active",
+    });
+    await processSyncEvent({
+      syncEventId: "00000000-0000-0000-0000-000000000027",
+      eventKind: "JOB_UPDATE",
+      source: "jobber",
+      providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+    });
+    expect(writes.some((w) => w.fn === "createOpportunity")).toBe(false);
+    expect(writes.some((w) => w.fn === "moveOpportunityStage")).toBe(false);
+  });
 });

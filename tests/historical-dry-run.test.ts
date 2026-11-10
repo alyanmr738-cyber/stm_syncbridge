@@ -57,4 +57,12 @@ describe("historical execute gate", () => {
   it("refuses execute while Gate B is off", () => {
     expect(() => assertHistoricalExecute()).toThrow(GateClosedError);
   });
+
+  it("does not treat Gate A as historical backfill", () => {
+    process.env.SYNC_ENABLED = "true";
+    process.env.OUTBOUND_WRITES_ENABLED = "true";
+    process.env.HISTORICAL_IMPORT_ENABLED = "false";
+    resetEnvCacheForTests();
+    expect(() => assertHistoricalExecute()).toThrow(GateClosedError);
+  });
 });
