@@ -61,13 +61,17 @@ describe("typed pilot scope", () => {
     resetEnvCacheForTests();
   });
 
-  it("allows creating a GHL contact only for an approved Jobber client", () => {
+  it("blocks creating a GHL contact while Gate A is off (existing-records-only)", () => {
     expect(
       pilotAllows({ jobberClientId: "jb-client-1", creatingGhlContact: true })
-    ).toBe(true);
-    expect(
-      pilotAllows({ jobberClientId: "other-client", creatingGhlContact: true })
     ).toBe(false);
+    expect(
+      pilotAllows({
+        jobberClientId: "jb-client-1",
+        ghlContactId: "ghl-contact-1",
+        creatingGhlContact: false,
+      })
+    ).toBe(true);
   });
 
   it("blocks updating an unlisted GHL contact even if Jobber parent is approved", () => {

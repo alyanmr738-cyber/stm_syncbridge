@@ -1,4 +1,6 @@
 import { getEnv } from "@/lib/config/env";
+import { GateClosedError } from "@/lib/config/feature-flags";
+import { buildPilotGhlContactBody, existingRecordsOnly } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 
 const BASE = "https://services.leadconnectorhq.com";
@@ -115,27 +117,13 @@ export async function upsertGhlContact(input: {
   jobberClientId?: string;
 }): Promise<GhlContact> {
   const loc = stmLocationId();
-  const customFields: { id: string; field_value: string }[] = [
-    { id: STM_GHL.fields.lastSyncedFrom, field_value: "jobber" },
-    { id: STM_GHL.fields.lastSyncedBy, field_value: "syncbridge" },
-    { id: STM_GHL.fields.lastSyncTimestamp, field_value: new Date().toISOString() },
-  ];
-  if (input.jobberClientId) {
-    customFields.push({
-      id: STM_GHL.fields.jobberClientId,
-      field_value: input.jobberClientId,
-    });
+  if (!input.id && existingRecordsOnly()) {
+    throw new GateClosedError("production_writes", "ghl.contact.create");
   }
-  const body = {
-    firstName: input.firstName,
-    lastName: input.lastName,
-    email: input.email,
-    phone: input.phone,
-    address1: input.address1,
-    city: input.city,
-    postalCode: input.postalCode,
-    customFields,
-  };
+  const body = buildPilotGhlContactBody(input);
+  if (Object.keys(body).length === 0) {
+    throw new GateClosedError("production_writes", "ghl.contact.empty_pilot_payload");
+  }
   if (input.id) {
     const json = await ghlWrite<{ contact: GhlContact }>("PUT", `/contacts/${input.id}`, body);
     return json.contact;
