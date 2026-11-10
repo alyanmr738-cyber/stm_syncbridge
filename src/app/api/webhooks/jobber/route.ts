@@ -23,16 +23,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const topic = String(payload.topic ?? payload.event ?? "unknown");
+  const nested = payload.data as { webHookEvent?: Record<string, unknown> } | undefined;
+  const event = nested?.webHookEvent ?? payload;
+  const topic = String(event.topic ?? payload.topic ?? payload.event ?? "unknown");
   const entityId = String(
-    payload.itemId ?? payload.id ?? payload.data ?? "unknown"
+    event.itemId ?? payload.itemId ?? payload.id ?? "unknown"
   );
 
   try {
     await persistAndEnqueue({
       source: "jobber",
       eventKind: topic,
-      providerEventKey: `${topic}:${entityId}:${String(payload.occurredAt ?? payload.time ?? "")}`,
+      providerEventKey: `${topic}:${entityId}:${String(event.occurredAt ?? event.occuredAt ?? payload.occurredAt ?? payload.time ?? "")}`,
       providerEntityId: entityId,
       payload,
     });

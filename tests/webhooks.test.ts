@@ -11,6 +11,13 @@ describe("webhook HMAC (T22)", () => {
     expect(verifyJobberWebhook(body, sig, secret)).toBe(true);
   });
 
+  it("accepts Jobber documented base64 HMAC", () => {
+    const body = Buffer.from('{"topic":"JOB_UPDATE"}');
+    const secret = "test-secret";
+    const sig = createHmac("sha256", secret).update(body).digest("base64");
+    expect(verifyJobberWebhook(body, sig, secret)).toBe(true);
+  });
+
   it("rejects spoofed signature", () => {
     const body = Buffer.from('{"topic":"JOB_UPDATE"}');
     expect(verifyJobberWebhook(body, "deadbeef", "test-secret")).toBe(false);

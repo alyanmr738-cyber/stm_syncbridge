@@ -30,4 +30,36 @@ describe("public Jobber webhook", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: true });
   });
+
+  it("unwraps Jobber nested webHookEvent and accepts base64 HMAC", async () => {
+    const { POST } = await import("@/app/api/webhooks/jobber/route");
+    const raw = Buffer.from(
+      JSON.stringify({
+        data: {
+          webHookEvent: {
+            topic: "JOB_CLOSED",
+            itemId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+            occurredAt: "2026-11-10T18:04:31Z",
+          },
+        },
+      })
+    );
+    const sig = createHmac("sha256", "test-secret").update(raw).digest("base64");
+    persistAndEnqueue.mockClear();
+    persistAndEnqueue.mockResolvedValue({ eventId: "evt-2", queued: true });
+    const res = await POST(
+      new Request("http://localhost/api/webhooks/jobber", {
+        method: "POST",
+        headers: { "x-jobber-hmac-sha256": sig },
+        body: raw,
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(persistAndEnqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventKind: "JOB_CLOSED",
+        providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      })
+    );
+  });
 });
