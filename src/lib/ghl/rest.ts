@@ -76,18 +76,27 @@ export async function getGhlContact(id: string): Promise<GhlContact | null> {
   }
 }
 
+async function ghlGetOptional<T>(path: string): Promise<T | null> {
+  const res = await fetch(`https://services.leadconnectorhq.com${path}`, {
+    headers: headers(),
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<T>;
+}
+
 export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
   const loc = stmLocationId();
   const q = query.trim();
   if (!q) return [];
-  const json = await ghlGet<{ contacts?: GhlContact[] }>(
+  const json = await ghlGetOptional<{ contacts?: GhlContact[] }>(
     `/contacts/?locationId=${encodeURIComponent(loc)}&query=${encodeURIComponent(q)}`
   );
-  if (json.contacts?.length) return json.contacts;
-  const phoneJson = await ghlGet<{ contacts?: GhlContact[] }>(
+  if (json?.contacts?.length) return json.contacts;
+  const phoneJson = await ghlGetOptional<{ contacts?: GhlContact[] }>(
     `/contacts/?locationId=${encodeURIComponent(loc)}&phone=${encodeURIComponent(q)}`
   );
-  return phoneJson.contacts ?? [];
+  return phoneJson?.contacts ?? [];
 }
 
 export async function searchGhlOpportunities(contactId: string): Promise<GhlOpportunity[]> {
