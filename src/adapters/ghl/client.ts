@@ -1,4 +1,5 @@
 import { getEnv } from "@/lib/config/env";
+import { verifyGhlConnection } from "@/lib/ghl/connection";
 import { ghlMockCapabilities, ghlMockGet } from "@/mocks/ghl";
 
 export type GhlCapabilityProbe = {
@@ -41,7 +42,14 @@ export class GhlReadOnlyClient {
       const data = await ghlMockGet<{ timezone: string }>("/locations/timezone");
       return { timezone: data.timezone, locationId: this.locationId ?? "mock-location" };
     }
-    return { timezone: null, locationId: this.locationId ?? null };
+    const status = await verifyGhlConnection();
+    if (!status.ok) {
+      return { timezone: null, locationId: this.locationId ?? null };
+    }
+    return {
+      timezone: status.timezone ?? null,
+      locationId: status.locationId ?? this.locationId ?? null,
+    };
   }
 
   async apiGet<T>(path: string, version = "2021-07-28"): Promise<T> {

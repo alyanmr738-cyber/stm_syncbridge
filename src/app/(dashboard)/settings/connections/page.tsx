@@ -1,12 +1,14 @@
 import { AdminShell, Panel, SettingsSubnav } from "@/components/admin/shell";
 import { getEnv } from "@/lib/config/env";
 import { checkSupabaseConnection } from "@/lib/db/supabase-admin";
+import { verifyGhlConnection } from "@/lib/ghl/connection";
 
 export default async function ConnectionsPage() {
   const env = getEnv();
   const jobberConfigured = Boolean(env.JOBBER_CLIENT_ID && env.JOBBER_CLIENT_SECRET);
   const ghlConfigured = Boolean(env.GHL_PRIVATE_INTEGRATION_TOKEN && env.GHL_LOCATION_ID);
   const supabase = await checkSupabaseConnection();
+  const ghl = await verifyGhlConnection();
 
   return (
     <AdminShell title="Connections" subtitle="Jobber OAuth and GoHighLevel private integration — read-only until Phase 0 audit completes.">
@@ -46,12 +48,31 @@ export default async function ConnectionsPage() {
         </Panel>
         <Panel heading="GoHighLevel">
           <p className="text-sm">
-            Private integration: {ghlConfigured ? "configured" : "missing"}
+            Private integration:{" "}
+            {ghl.ok ? (
+              <span className="font-semibold text-[#267651]">connected</span>
+            ) : ghlConfigured ? (
+              <span className="font-semibold text-[#b45309]">configured · not verified</span>
+            ) : (
+              "missing env"
+            )}
           </p>
-          <p className="mt-2 text-sm text-[#657683]">
-            Use Septic Tank Man sub-account only. Pipeline and stage IDs are
-            discovered read-only into docs/ACCOUNT_MAPPING.md.
-          </p>
+          {ghl.ok ? (
+            <ul className="mt-2 space-y-1 text-xs text-[#657683]">
+              <li>
+                <span className="text-[#192b36]">{ghl.name}</span>
+              </li>
+              <li>Location ID: {ghl.locationId}</li>
+              <li>Timezone: {ghl.timezone ?? "—"}</li>
+            </ul>
+          ) : ghl.error ? (
+            <p className="mt-2 text-xs text-[#657683]">{ghl.error}</p>
+          ) : (
+            <p className="mt-2 text-sm text-[#657683]">
+              Set GHL_PRIVATE_INTEGRATION_TOKEN and GHL_LOCATION_ID in Vercel /
+              .env.local (Septic Tank Man sub-account only).
+            </p>
+          )}
         </Panel>
       </div>
     </AdminShell>
