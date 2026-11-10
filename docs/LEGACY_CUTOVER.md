@@ -4,7 +4,7 @@ SyncBridge replaces GHL↔Jobber Zapier sync. **Do not disable GHL workflows unt
 
 | Workflow | Action |
 |----------|--------|
-| STM – Z7 – Contact Update to Zapier | Pause in GHL UI when authorized (temporary during dual-run risk). Rollback: republish Z7. |
+| STM – Z7 – Contact Update to Zapier | Pause in GHL UI when authorized. Rollback: republish Z7. Do not edit other workflows. |
 | STM – I1 – New Lead Notification | Retire after SyncBridge new-contact path is live. Keep off SyncBridge contact **creates**. Rollback: republish I1. |
 | Workflow 4 – Service Completed | Retire after SyncBridge job-complete + review is proven. Rollback: republish Workflow 4. |
 | Workflow 1 – New Lead | **Keep.** Not part of the integration replacement. |

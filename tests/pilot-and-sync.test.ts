@@ -74,6 +74,25 @@ describe("typed pilot scope", () => {
     ).toBe(true);
   });
 
+  it("Gate A does not allow creating contacts without ALLOW_RECORD_CREATION", () => {
+    process.env.SYNC_ENABLED = "true";
+    process.env.OUTBOUND_WRITES_ENABLED = "true";
+    process.env.ALLOW_RECORD_CREATION = "";
+    process.env.PILOT_EXISTING_RECORDS_ONLY = "true";
+    resetEnvCacheForTests();
+    expect(canWriteToProviders()).toBe(true);
+    expect(
+      pilotAllows({ jobberClientId: "jb-client-1", creatingGhlContact: true })
+    ).toBe(false);
+    expect(
+      pilotAllows({
+        jobberClientId: "jb-client-1",
+        ghlContactId: "ghl-contact-1",
+        creatingGhlContact: false,
+      })
+    ).toBe(true);
+  });
+
   it("blocks updating an unlisted GHL contact even if Jobber parent is approved", () => {
     expect(
       pilotAllows({

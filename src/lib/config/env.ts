@@ -41,6 +41,7 @@ const envSchema = z.object({
   PILOT_GHL_OPPORTUNITY_IDS: z.string().optional(),
   PILOT_GHL_ALLOWED_FIELDS: z.string().optional(),
   PILOT_EXISTING_RECORDS_ONLY: z.string().optional(),
+  ALLOW_RECORD_CREATION: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),

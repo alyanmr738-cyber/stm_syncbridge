@@ -39,12 +39,12 @@ export function pilotAllows(opts: {
   creatingJobberClient?: boolean;
   creatingGhlOpportunity?: boolean;
 }): boolean {
-  if (canWriteToProviders()) return true;
   if (existingRecordsOnly()) {
     if (opts.creatingGhlContact || opts.creatingJobberClient || opts.creatingGhlOpportunity) {
       return false;
     }
   }
+  if (canWriteToProviders()) return true;
   const p = getPilotScope();
   const anyTyped =
     p.jobberClientIds.length +
@@ -112,10 +112,12 @@ export function assertPilotWrite(operation: string, opts: Parameters<typeof pilo
   throw new GateClosedError("production_writes", operation);
 }
 
-/** When Gate A is off, default to update-only (no new contacts/jobs/opps). */
+/** Default: never create contacts/jobs/opps. Gate A does not lift this. */
 export function existingRecordsOnly(): boolean {
-  if (canWriteToProviders()) return false;
-  return getEnv().PILOT_EXISTING_RECORDS_ONLY !== "false";
+  const env = getEnv();
+  if (env.ALLOW_RECORD_CREATION === "true") return false;
+  if (env.PILOT_EXISTING_RECORDS_ONLY === "false" && canWriteToProviders()) return false;
+  return true;
 }
 
 export type PilotGhlField =
