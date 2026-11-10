@@ -8,7 +8,7 @@ Code successor of `41e6302` (this change). Confirm Vercel Ready on the new commi
 
 - App Ready at `https://stmsyncbridge.vercel.app`
 - Cron GET with secret: previously **200** `processed` + stats
-- Hobby: minute cron **not** a valid automatic schedule — see `SCHEDULING_AND_CRON.md`
+- Cron: Vercel Pro trial supports `* * * * *` — see `SCHEDULING_AND_CRON.md`
 
 ## Jobber API version
 

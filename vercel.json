@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/internal/process-queue",
-      "schedule": "0 14 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

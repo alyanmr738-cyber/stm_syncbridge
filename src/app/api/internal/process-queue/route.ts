@@ -8,7 +8,7 @@ export const maxDuration = 60;
 async function run() {
   const { processed } = await drainQueue(25);
   const stats = await getEventQueue().stats();
-  return { processed, stats, scheduler: "webhook-drain+daily-cron" };
+  return { processed, stats, scheduler: "webhook-drain+minute-cron" };
 }
 
 export async function POST(request: Request) {

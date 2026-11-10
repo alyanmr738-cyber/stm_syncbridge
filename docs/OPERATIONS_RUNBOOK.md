@@ -7,7 +7,7 @@
 - Jobber callback: `/api/oauth/jobber/callback`
 - Jobber webhooks: `/api/webhooks/jobber`
 - Queue worker: `GET/POST /api/internal/process-queue` (Bearer `CRON_SECRET` or HMAC)
-- Scheduler: webhook `after()` drain + daily cron `0 14 * * *` UTC (Hobby). See `docs/SCHEDULING_AND_CRON.md`.
+- Scheduler: webhook `after()` drain + minute cron `* * * * *` (Vercel Pro). See `docs/SCHEDULING_AND_CRON.md`.
 
 ## Reconnect Jobber
 

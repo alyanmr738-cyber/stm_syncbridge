@@ -6,7 +6,7 @@ export async function GET() {
     ok: true,
     service: "syncbridge",
     jobberApiVersion: JOBBER_SUPPORTED_API_VERSION,
-    queueScheduler: "webhook-drain+daily-cron",
+    queueScheduler: "webhook-drain+minute-cron",
     flags: featureFlagsSnapshot(),
   });
 }
