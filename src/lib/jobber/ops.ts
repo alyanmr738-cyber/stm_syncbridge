@@ -15,7 +15,7 @@ export type JobberClient = {
   clientProperties?: { nodes?: JobberProperty[] };
 };
 
-export function isJobberEncodedId(id?: string | null): boolean {
+export function isJobberEncodedId(id?: string | null): id is string {
   return Boolean(id && id.startsWith("Z2lkOi8v"));
 }
 
