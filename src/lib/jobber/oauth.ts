@@ -1,4 +1,5 @@
 import { getEnv, parseIdAllowlist } from "@/lib/config/env";
+import { jobberGraphqlVersion } from "@/lib/jobber/version";
 
 const JOBBER_AUTH = "https://api.getjobber.com/api/oauth/authorize";
 const JOBBER_TOKEN = "https://api.getjobber.com/api/oauth/token";
@@ -67,7 +68,7 @@ export async function fetchJobberAccount(accessToken: string): Promise<{
   id: string;
   name: string;
 }> {
-  const version = getEnv().JOBBER_GRAPHQL_VERSION ?? "2025-01-20";
+  const version = jobberGraphqlVersion(getEnv().JOBBER_GRAPHQL_VERSION);
   const res = await fetch(JOBBER_GRAPHQL, {
     method: "POST",
     headers: {

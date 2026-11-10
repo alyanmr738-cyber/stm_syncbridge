@@ -1,9 +1,6 @@
 import { getEnv } from "@/lib/config/env";
-import {
-  GateClosedError,
-  assertWriteForEntities,
-  canWriteForEntities,
-} from "@/lib/config/feature-flags";
+import { GateClosedError } from "@/lib/config/feature-flags";
+import { assertPilotWrite } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import { createOpportunity, moveOpportunityStage, searchGhlContacts, upsertGhlContact } from "@/lib/ghl/rest";
 import {
@@ -88,21 +85,48 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     }
   }
 
-  assertWriteForEntities(`jobber.client:${event.eventKind}`, [client.id, ghlId]);
+  assertPilotWrite(`jobber.client:${event.eventKind}`, {
+    jobberClientId: client.id,
+    ghlContactId: ghlId,
+    creatingGhlContact: !ghlId,
+  });
+  const prop = client.properties?.nodes?.[0]?.address;
   const contact = await upsertGhlContact({
     id: ghlId,
     firstName: client.firstName ?? undefined,
     lastName: client.lastName ?? undefined,
     email,
     phone: normalizePhone(phone) ?? undefined,
+    address1: prop?.street1,
+    city: prop?.city,
+    postalCode: prop?.postalCode,
   });
-  await upsertCustomerLink({
+  const linkId = await upsertCustomerLink({
     jobber_client_id: client.id,
     ghl_contact_id: contact.id,
     match_method: ghlId ? "jobber_authoritative_update" : "jobber_create",
     verified: true,
     last_jobber_revision: JSON.stringify({ email, phone, name: client.name }),
   });
+  const supabaseWrite = getSupabaseAdmin();
+  for (const property of client.properties?.nodes ?? []) {
+    if (!linkId || !property.id) continue;
+    await supabaseWrite?.from("property_links").upsert(
+      {
+        customer_link_id: linkId,
+        jobber_property_id: property.id,
+        ghl_property_reference: [
+          property.address?.street1,
+          property.address?.city,
+          property.address?.postalCode,
+        ]
+          .filter(Boolean)
+          .join(", "),
+        last_synced_at: new Date().toISOString(),
+      },
+      { onConflict: "jobber_property_id" }
+    );
+  }
 }
 
 export async function syncGhlContact(event: LoadedEvent): Promise<void> {
@@ -138,7 +162,11 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
     jobberId = linked.data?.jobber_client_id ?? undefined;
   }
 
-  assertWriteForEntities(`ghl.contact:${event.eventKind}`, [ghlId, jobberId]);
+  assertPilotWrite(`ghl.contact:${event.eventKind}`, {
+    ghlContactId: ghlId,
+    jobberClientId: jobberId,
+    creatingJobberClient: !jobberId,
+  });
   if (jobberId) {
     await editJobberClient({
       id: jobberId,
@@ -237,7 +265,10 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
   const supabase = getSupabaseAdmin();
 
   if (existing?.ghl_opportunity_id && env.JOB_COMPLETION_SYNC_ENABLED) {
-    assertWriteForEntities("jobber.job_closed", [jobId, existing.ghl_opportunity_id]);
+    assertPilotWrite("jobber.job_closed", {
+      jobberJobId: jobId,
+      ghlOpportunityId: existing.ghl_opportunity_id as string,
+    });
     await moveOpportunityStage({
       opportunityId: existing.ghl_opportunity_id as string,
       stageId: STM_GHL.jobCompletedStageId,
@@ -251,7 +282,12 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
           .maybeSingle()
       : { data: null };
     const cl = clRes.data;
-    if (cl?.ghl_contact_id && canWriteForEntities([jobId, cl.ghl_contact_id])) {
+    if (cl?.ghl_contact_id) {
+      assertPilotWrite("jobber.job_closed.create_opp", {
+        jobberJobId: jobId,
+        ghlContactId: cl.ghl_contact_id,
+        creatingGhlOpportunity: true,
+      });
       const opp = await createOpportunity({
         contactId: cl.ghl_contact_id,
         name: `Job ${jobId}`,
@@ -312,7 +348,10 @@ export async function syncAiSummary(event: LoadedEvent): Promise<void> {
   if (existingRes.data?.summary_hash === hash) return;
   const clientId = String(event.payload.jobberClientId ?? "");
   const jobId = String(event.payload.jobberJobId ?? "");
-  assertWriteForEntities("ai.summary_note", [clientId || null, jobId || null]);
+  assertPilotWrite("ai.summary_note", {
+    jobberClientId: clientId || null,
+    jobberJobId: jobId || null,
+  });
   const noteId = await createJobberNote({
     clientId: clientId || undefined,
     jobId: jobId || undefined,

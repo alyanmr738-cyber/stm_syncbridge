@@ -1,5 +1,6 @@
 import { getEnv } from "@/lib/config/env";
 import { getValidJobberAccessToken, markJobberDisconnected } from "@/lib/jobber/tokens";
+import { jobberGraphqlVersion } from "@/lib/jobber/version";
 
 const ENDPOINT = "https://api.getjobber.com/api/graphql";
 
@@ -13,10 +14,7 @@ export async function jobberGraphql<T>(
   variables?: Record<string, unknown>
 ): Promise<T> {
   const env = getEnv();
-  const version = env.JOBBER_GRAPHQL_VERSION;
-  if (!version) {
-    throw new Error("JOBBER_GRAPHQL_VERSION is not pinned");
-  }
+  const version = jobberGraphqlVersion(env.JOBBER_GRAPHQL_VERSION);
   const { accessToken } = await getValidJobberAccessToken();
   const res = await fetch(ENDPOINT, {
     method: "POST",

@@ -70,23 +70,27 @@ export async function upsertGhlContact(input: {
   lastName?: string;
   email?: string;
   phone?: string;
+  address1?: string;
+  city?: string;
+  postalCode?: string;
 }): Promise<GhlContact> {
   const loc = stmLocationId();
-  if (input.id) {
-    const json = await ghlWrite<{ contact: GhlContact }>("PUT", `/contacts/${input.id}`, {
-      firstName: input.firstName,
-      lastName: input.lastName,
-      email: input.email,
-      phone: input.phone,
-    });
-    return json.contact;
-  }
-  const json = await ghlWrite<{ contact: GhlContact }>("POST", "/contacts/", {
-    locationId: loc,
+  const body = {
     firstName: input.firstName,
     lastName: input.lastName,
     email: input.email,
     phone: input.phone,
+    address1: input.address1,
+    city: input.city,
+    postalCode: input.postalCode,
+  };
+  if (input.id) {
+    const json = await ghlWrite<{ contact: GhlContact }>("PUT", `/contacts/${input.id}`, body);
+    return json.contact;
+  }
+  const json = await ghlWrite<{ contact: GhlContact }>("POST", "/contacts/", {
+    locationId: loc,
+    ...body,
   });
   return json.contact;
 }

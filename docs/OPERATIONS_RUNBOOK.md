@@ -7,6 +7,7 @@
 - Jobber callback: `/api/oauth/jobber/callback`
 - Jobber webhooks: `/api/webhooks/jobber`
 - Queue worker: `GET/POST /api/internal/process-queue` (Bearer `CRON_SECRET` or HMAC)
+- Scheduler: webhook `after()` drain + daily cron `0 14 * * *` UTC (Hobby). See `docs/SCHEDULING_AND_CRON.md`.
 
 ## Reconnect Jobber
 
@@ -45,4 +46,10 @@ Vercel → previous Ready deployment → Promote. Keep gates A/B/C false.
 
 ## Webhooks
 
-HMAC `X-Jobber-Hmac-SHA256` over raw body. URL must match production exactly. Add CLIENT_CREATE/UPDATE if missing.
+HMAC `X-Jobber-Hmac-SHA256` over raw body. URL must match production exactly.
+
+CLIENT_CREATE and CLIENT_UPDATE were registered 2026-11-10 via `webhookEndpointCreate` to the production Jobber webhook URL.
+
+GHL: require `X-GHL-Signature` (Ed25519), legacy `X-WH-Signature` (RSA), or workflow `X-GHL-Webhook-Secret` / Bearer matching `GHL_WEBHOOK_SECRET`. Unsigned requests are rejected.
+
+Activity dead-letter rows: use Retry (admin session) → `POST /api/admin/queue/retry`.

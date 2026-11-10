@@ -1,4 +1,5 @@
 import { AdminShell, Panel } from "@/components/admin/shell";
+import { RetryButton } from "@/components/admin/retry-button";
 import { listRecentEvents } from "@/services/events/inbox";
 
 export default async function ActivityPage() {
@@ -16,6 +17,7 @@ export default async function ActivityPage() {
                 <th>Source</th>
                 <th>Status</th>
                 <th>Received</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -25,6 +27,11 @@ export default async function ActivityPage() {
                   <td>{e.source}</td>
                   <td>{e.status}</td>
                   <td>{e.receivedAt}</td>
+                  <td>
+                    {(e.status === "dead_letter" || e.status === "retrying") && (
+                      <RetryButton eventId={e.id} />
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

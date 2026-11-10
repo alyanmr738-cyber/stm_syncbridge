@@ -1,32 +1,24 @@
+import { after } from "next/server";
 import { getEnv } from "@/lib/config/env";
-import { verifyGhlSignature } from "@/lib/webhooks/ghl-verify";
+import { authorizeGhlRequest } from "@/lib/webhooks/ghl-verify";
 import { persistAndEnqueue } from "@/services/events/inbox";
+import { drainQueue } from "@/lib/queue/drain";
 
 export async function POST(request: Request) {
   const env = getEnv();
   const raw = Buffer.from(await request.arrayBuffer());
-  const shared = env.GHL_WEBHOOK_SECRET ?? process.env.GHL_WEBHOOK_SECRET;
-  if (shared) {
-    const presented =
-      request.headers.get("x-ghl-webhook-secret") ??
-      request.headers.get("x-webhook-secret") ??
-      "";
-    if (presented !== shared) {
-      return Response.json({ error: "Invalid GHL webhook secret" }, { status: 401 });
-    }
-  }
-  const requireSig = Boolean(process.env.GHL_WEBHOOK_PUBLIC_KEY);
-  const ok = verifyGhlSignature({
+  const authz = authorizeGhlRequest({
     rawBody: raw,
-    signatureHeader:
-      request.headers.get("x-ghl-signature") ??
-      request.headers.get("x-wh-signature"),
-    timestampHeader: request.headers.get("x-ghl-timestamp"),
-    publicKeyPem: process.env.GHL_WEBHOOK_PUBLIC_KEY,
-    require: requireSig,
+    ghlSignature: request.headers.get("x-ghl-signature"),
+    whSignature: request.headers.get("x-wh-signature"),
+    workflowSecret: env.GHL_WEBHOOK_SECRET,
+    presentedSecret:
+      request.headers.get("x-ghl-webhook-secret") ??
+      request.headers.get("x-webhook-secret"),
+    authorization: request.headers.get("authorization"),
   });
-  if (!ok) {
-    return Response.json({ error: "Invalid GHL signature" }, { status: 401 });
+  if (!authz.ok) {
+    return Response.json({ error: "Unauthorized GHL webhook" }, { status: 401 });
   }
 
   let payload: Record<string, unknown> = {};
@@ -57,5 +49,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not durable" }, { status: 503 });
   }
 
-  return Response.json({ received: true });
+  after(async () => {
+    await drainQueue(10);
+  });
+
+  return Response.json({ received: true, auth: authz.mode });
 }

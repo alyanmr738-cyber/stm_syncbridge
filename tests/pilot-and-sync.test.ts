@@ -5,6 +5,7 @@ import {
   canWriteToProviders,
   isPilotEntity,
 } from "@/lib/config/feature-flags";
+import { pilotAllows } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import { processSyncEvent } from "@/lib/sync/engine";
 import { decideMatch } from "@/lib/sync/identity";
@@ -36,6 +37,52 @@ describe("pilot allowlist does not enable Gate A", () => {
     expect(canWriteForEntities(["pilot-jobber-1", "pilot-ghl-1"])).toBe(true);
     expect(canWriteForEntities(["pilot-jobber-1", "someone-else"])).toBe(false);
     expect(canWriteForEntities([])).toBe(false);
+  });
+});
+
+describe("typed pilot scope", () => {
+  const prev = { ...process.env };
+  beforeEach(() => {
+    process.env = {
+      ...prev,
+      SYNC_ENABLED: "false",
+      OUTBOUND_WRITES_ENABLED: "false",
+      PILOT_JOBBER_CLIENT_IDS: "jb-client-1",
+      PILOT_GHL_CONTACT_IDS: "ghl-contact-1",
+      PILOT_JOBBER_JOB_IDS: "jb-job-1",
+      PILOT_GHL_OPPORTUNITY_IDS: "ghl-opp-1",
+      PILOT_ENTITY_IDS: "",
+    };
+    resetEnvCacheForTests();
+  });
+  afterEach(() => {
+    process.env = prev;
+    resetEnvCacheForTests();
+  });
+
+  it("allows creating a GHL contact only for an approved Jobber client", () => {
+    expect(
+      pilotAllows({ jobberClientId: "jb-client-1", creatingGhlContact: true })
+    ).toBe(true);
+    expect(
+      pilotAllows({ jobberClientId: "other-client", creatingGhlContact: true })
+    ).toBe(false);
+  });
+
+  it("blocks updating an unlisted GHL contact even if Jobber parent is approved", () => {
+    expect(
+      pilotAllows({
+        jobberClientId: "jb-client-1",
+        ghlContactId: "random-ghl",
+        creatingGhlContact: false,
+      })
+    ).toBe(false);
+    expect(
+      pilotAllows({
+        jobberClientId: "jb-client-1",
+        ghlContactId: "ghl-contact-1",
+      })
+    ).toBe(true);
   });
 });
 

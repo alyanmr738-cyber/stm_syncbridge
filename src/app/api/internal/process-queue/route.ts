@@ -1,16 +1,14 @@
 import { authorizeWorker } from "@/lib/auth/worker-auth";
+import { drainQueue } from "@/lib/queue/drain";
 import { getEventQueue } from "@/lib/queue";
-import { processSyncEvent } from "@/services/events/processor";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 async function run() {
-  const queue = getEventQueue();
-  let processed = 0;
-  while (await queue.processNext(processSyncEvent)) {
-    processed += 1;
-    if (processed >= 25) break;
-  }
-  const stats = await queue.stats();
-  return { processed, stats };
+  const { processed } = await drainQueue(25);
+  const stats = await getEventQueue().stats();
+  return { processed, stats, scheduler: "webhook-drain+daily-cron" };
 }
 
 export async function POST(request: Request) {

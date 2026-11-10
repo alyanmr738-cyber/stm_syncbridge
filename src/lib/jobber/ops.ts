@@ -1,5 +1,10 @@
 import { jobberGraphql } from "@/lib/jobber/graphql";
 
+export type JobberProperty = {
+  id: string;
+  address?: { street1?: string; city?: string; postalCode?: string } | null;
+};
+
 export type JobberClient = {
   id: string;
   firstName?: string | null;
@@ -7,6 +12,7 @@ export type JobberClient = {
   name?: string | null;
   emails?: { nodes?: { address?: string }[] };
   phones?: { nodes?: { number?: string }[] };
+  properties?: { nodes?: JobberProperty[] };
 };
 
 export async function fetchJobberClient(id: string): Promise<JobberClient | null> {
@@ -19,6 +25,7 @@ export async function fetchJobberClient(id: string): Promise<JobberClient | null
         name
         emails { nodes { address } }
         phones { nodes { number } }
+        properties { nodes { id address { street1 city postalCode } } }
       }
     }`,
     { id }

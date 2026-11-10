@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { getEnv } from "@/lib/config/env";
 import { verifyJobberWebhook } from "@/lib/webhooks/verify";
 import { persistAndEnqueue } from "@/services/events/inbox";
+import { drainQueue } from "@/lib/queue/drain";
 
 export async function POST(request: Request) {
   const raw = Buffer.from(await request.arrayBuffer());
@@ -37,6 +39,10 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "Not durable" }, { status: 503 });
   }
+
+  after(async () => {
+    await drainQueue(10);
+  });
 
   return Response.json({ received: true });
 }
