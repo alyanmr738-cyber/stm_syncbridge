@@ -5,7 +5,7 @@ import {
   StatTile,
 } from "@/components/admin/shell";
 import { ActivityFeed } from "@/components/admin/activity-feed";
-import { connectionCounts, queueHealth } from "@/lib/db/admin-lists";
+import { connectionCounts, listLinks, queueHealth } from "@/lib/db/admin-lists";
 import { featureFlagsSnapshot, gateStatus } from "@/lib/config/feature-flags";
 import { getSchedulingPolicy } from "@/lib/config/scheduling-policy";
 import { runCapabilityAudit } from "@/services/audit/capability-audit";
@@ -14,10 +14,11 @@ export default async function OverviewPage() {
   const flags = featureFlagsSnapshot();
   const gates = gateStatus();
   const scheduling = getSchedulingPolicy();
-  const [audit, counts, queue] = await Promise.all([
+  const [audit, counts, queue, links] = await Promise.all([
     runCapabilityAudit(),
     connectionCounts(),
     queueHealth(),
+    listLinks(),
   ]);
   const gatesOn = Object.values(gates).filter(Boolean).length;
 
@@ -50,6 +51,11 @@ export default async function OverviewPage() {
           label="Approval gates"
           value={`${gatesOn}/3`}
           caption="Writes · backfill · messaging"
+        />
+        <StatTile
+          label="Customer links"
+          value={String(links.customers.length)}
+          caption={`${links.jobs.length} job links`}
         />
       </section>
 

@@ -74,6 +74,20 @@ export function jobClosed(status?: string | null): boolean {
   return /close|complete|done/i.test(status ?? "");
 }
 
+export function jobCancelled(status?: string | null): boolean {
+  return /cancel/i.test(status ?? "");
+}
+
+export function jobStageForStatus(status?: string | null): string {
+  if (jobClosed(status)) return "completed";
+  if (jobCancelled(status)) return "cancelled";
+  return "scheduled";
+}
+
 export function shouldReuseJob(existingJobberJobId?: string | null, incomingJobberJobId?: string | null): boolean {
   return Boolean(existingJobberJobId && incomingJobberJobId && existingJobberJobId === incomingJobberJobId);
+}
+
+export function isObsoleteJobberSchemaError(message?: string | null): boolean {
+  return /Field 'nodes' doesn't exist/i.test(message ?? "");
 }

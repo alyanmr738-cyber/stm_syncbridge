@@ -29,7 +29,7 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
     eventKind: (row?.event_kind as string) ?? payload.eventKind,
     providerEntityId:
       (row?.provider_entity_id as string | null) ?? payload.providerEntityId ?? null,
-    payload: (row?.payload as Record<string, unknown>) ?? {},
+    payload: (row?.payload as Record<string, unknown>) ?? payload.payload ?? {},
   };
   const kind = event.eventKind.toUpperCase();
 
@@ -50,7 +50,7 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
       await syncGhlContact(event);
       return;
     }
-    if (/APPOINTMENT|BOOKING|VISIT_CREATE/.test(kind)) {
+    if (/APPOINTMENT|BOOKING/.test(kind) && event.source !== "jobber") {
       await syncBooking(event);
       return;
     }
@@ -58,7 +58,7 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
       await syncJobClosed(event);
       return;
     }
-    if (/JOB_|JOB\.|VISIT_/.test(kind) && event.source === "jobber") {
+    if ((/JOB_|JOB\./.test(kind) || /VISIT_/.test(kind)) && event.source === "jobber") {
       await syncJobberJob(event);
       return;
     }
@@ -76,7 +76,7 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
   } catch (e) {
     if (e instanceof GateClosedError) {
       await markSuppressed(payload.syncEventId, e.message);
-      if (/APPOINTMENT|VISIT_CREATE|BOOKING/.test(kind)) {
+      if (/APPOINTMENT|BOOKING/.test(kind) && event.source !== "jobber") {
         await syncBooking(event);
       }
       return;

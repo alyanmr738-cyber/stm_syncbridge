@@ -3,6 +3,7 @@ export type QueueJobPayload = {
   eventKind: string;
   source: "jobber" | "ghl" | "internal";
   providerEntityId?: string;
+  payload?: Record<string, unknown>;
 };
 
 export type EnqueueResult = { jobId: string; alreadyQueued?: boolean };

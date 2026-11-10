@@ -3,8 +3,11 @@ import { buildClientEditVariables } from "@/lib/jobber/ops";
 import {
   collectIdHits,
   decideProviderMatch,
+  isObsoleteJobberSchemaError,
   jobberClientToGhlPayload,
+  jobCancelled,
   jobClosed,
+  jobStageForStatus,
   quoteInvoiceNoteBody,
   shouldReuseJob,
 } from "@/lib/sync/matching";
@@ -89,6 +92,17 @@ describe("jobs and documents", () => {
   it("treats closed/complete as completion", () => {
     expect(jobClosed("closed")).toBe(true);
     expect(jobClosed("active")).toBe(false);
+    expect(jobCancelled("cancelled")).toBe(true);
+    expect(jobStageForStatus("closed")).toBe("completed");
+    expect(jobStageForStatus("cancelled")).toBe("cancelled");
+    expect(jobStageForStatus("active")).toBe("scheduled");
+  });
+
+  it("detects obsolete Jobber emails{nodes} dead letters", () => {
+    expect(
+      isObsoleteJobberSchemaError("Field 'nodes' doesn't exist on type 'Email'")
+    ).toBe(true);
+    expect(isObsoleteJobberSchemaError("GHL GET 422")).toBe(false);
   });
 
   it("builds an idempotent quote/invoice note body", () => {

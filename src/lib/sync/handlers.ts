@@ -22,7 +22,12 @@ import {
   isJobberEncodedId,
   searchJobberClients,
 } from "@/lib/jobber/ops";
-import { jobberClientToGhlPayload, jobClosed, quoteInvoiceNoteBody } from "@/lib/sync/matching";
+import {
+  jobberClientToGhlPayload,
+  jobCancelled,
+  jobClosed,
+  quoteInvoiceNoteBody,
+} from "@/lib/sync/matching";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { normalizeEmail, normalizePhone } from "@/lib/sync/identity";
 import {
@@ -72,15 +77,17 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
 
   let ghlId: string | undefined;
   const supabase = getSupabaseAdmin();
+  let priorRevision: string | null = null;
   if (decision.kind === "linked") {
     const linked = supabase
       ? await supabase
           .from("customer_links")
-          .select("ghl_contact_id")
+          .select("ghl_contact_id, last_jobber_revision")
           .eq("id", decision.customerLinkId)
           .maybeSingle()
       : { data: null };
     ghlId = linked.data?.ghl_contact_id ?? undefined;
+    priorRevision = (linked.data?.last_jobber_revision as string | null) ?? null;
   }
 
   if (decision.kind === "provider" && decision.ghlContactId) {
@@ -111,6 +118,10 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     creatingGhlContact: !ghlId,
   });
   const mapped = jobberClientToGhlPayload(client);
+  const revision = JSON.stringify({ email, phone, name: client.name });
+  if (ghlId && priorRevision === revision) {
+    return;
+  }
   const contact = await upsertGhlContact({
     id: ghlId,
     firstName: mapped.firstName,
@@ -127,7 +138,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     ghl_contact_id: contact.id,
     match_method: ghlId ? "jobber_authoritative_update" : "jobber_create",
     verified: true,
-    last_jobber_revision: JSON.stringify({ email, phone, name: client.name }),
+    last_jobber_revision: revision,
   });
   const supabaseWrite = getSupabaseAdmin();
   for (const property of client.clientProperties?.nodes ?? []) {
@@ -294,7 +305,25 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
   const job = await fetchJobberJob(jobId);
   if (!job) return;
   const existing = await findJobLink({ jobberJobId: job.id });
+  const env = getEnv();
   if (existing?.ghl_opportunity_id) {
+    const statusChanged = existing.last_job_status !== job.jobStatus;
+    if (
+      statusChanged &&
+      env.JOB_COMPLETION_SYNC_ENABLED &&
+      (jobClosed(job.jobStatus) || jobCancelled(job.jobStatus))
+    ) {
+      assertPilotWrite("jobber.job.stage", {
+        jobberJobId: job.id,
+        ghlOpportunityId: existing.ghl_opportunity_id as string,
+      });
+      await moveOpportunityStage({
+        opportunityId: existing.ghl_opportunity_id as string,
+        stageId: jobClosed(job.jobStatus)
+          ? STM_GHL.jobCompletedStageId
+          : STM_GHL.jobScheduledStageId,
+      });
+    }
     await upsertJobLink({
       jobber_job_id: job.id,
       last_job_status: job.jobStatus,
@@ -450,6 +479,19 @@ export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "in
   let ghlNoteId: string | null = null;
   const writeFlag = kind === "quote" ? env.ESTIMATE_SYNC_ENABLED : env.INVOICE_SYNC_ENABLED;
   const clientId = live?.client?.id;
+  const existingFinance = supabase
+    ? await supabase
+        .from(table)
+        .select("last_status, ghl_reference")
+        .eq(col, id)
+        .maybeSingle()
+    : { data: null };
+  if (
+    existingFinance.data?.last_status === status &&
+    existingFinance.data?.ghl_reference
+  ) {
+    return;
+  }
   if (writeFlag && clientId) {
     const { data: link } = supabase
       ? await supabase

@@ -1,0 +1,23 @@
+# SyncBridge engineering checklist
+
+- [x] Jobber client → GHL contact (field-filtered when Gate A off)
+- [x] GHL → Jobber identity writes (Gate A / unrestricted only; blocked in restricted pilot)
+- [x] Match + conflicts; no duplicate create in existing-records-only
+- [x] Jobber Client ID custom field `saS3lqgdYaw8RPz95NZd`
+- [x] Property stored as DB reference (not a GHL address overwrite in pilot)
+- [x] Loop skip when `last_jobber_revision` unchanged
+- [x] Jobber job ↔ GHL opportunity; VISIT_* reuses Jobber job
+- [x] GHL bookings stay `pending_jobber_confirmation`
+- [x] Job closed → Job Completed stage when flag + writes allowed
+- [x] Quote/invoice live Jobber status; GHL note when estimate/invoice flags on
+- [x] AI summary → Jobber note when flag on; Gate C off suppresses reviews
+- [x] Historical dry-run; execute blocked by Gate B
+- [x] OAuth refresh, Jobber 2026-11-03, HMAC, GHL 401 unsigned
+- [x] Queue leases, retry, obsolete `emails{nodes}` dead-letters suppressed on retry
+- [x] Dashboard: connections, activity, links, bookings, reviews, conflicts, import
+- [x] Live pilot custom-field write on approved pair (unverified for identity overwrite)
+- [ ] Gate A unrestricted writes — BLOCKED pending written approval
+- [ ] Gate B historical execute — BLOCKED
+- [ ] Gate C messaging — BLOCKED
+- [ ] Reverse-direction live test — BLOCKED (restricted pilot)
+- [ ] Pause Z7 in GHL UI — BLOCKED pending owner

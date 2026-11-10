@@ -13,6 +13,24 @@ export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ error: "db unavailable" }, { status: 503 });
 
+  const { data: current } = await supabase
+    .from("sync_events")
+    .select("id, last_error_redacted")
+    .eq("id", eventId)
+    .maybeSingle();
+  const { isObsoleteJobberSchemaError } = await import("@/lib/sync/matching");
+  if (isObsoleteJobberSchemaError(current?.last_error_redacted as string | undefined)) {
+    await supabase
+      .from("sync_events")
+      .update({
+        status: "suppressed",
+        last_error_redacted: "Obsolete Jobber emails{nodes} schema error — do not replay",
+        processed_at: new Date().toISOString(),
+      })
+      .eq("id", eventId);
+    return Response.json({ retried: eventId, suppressed: true, reason: "obsolete_jobber_schema" });
+  }
+
   await supabase
     .from("sync_events")
     .update({ status: "queued", last_error_redacted: null })
