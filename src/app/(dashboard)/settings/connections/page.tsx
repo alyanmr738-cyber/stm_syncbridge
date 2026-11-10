@@ -1,18 +1,60 @@
+import Link from "next/link";
 import { AdminShell, Panel, SettingsSubnav } from "@/components/admin/shell";
 import { getEnv } from "@/lib/config/env";
 import { checkSupabaseConnection } from "@/lib/db/supabase-admin";
+import { getJobberConnectionSummary } from "@/lib/db/sync-connections";
 import { verifyGhlConnection } from "@/lib/ghl/connection";
 
-export default async function ConnectionsPage() {
+export default async function ConnectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
   const env = getEnv();
-  const jobberConfigured = Boolean(env.JOBBER_CLIENT_ID && env.JOBBER_CLIENT_SECRET);
+  const jobberConfigured = Boolean(
+    env.JOBBER_CLIENT_ID &&
+      env.JOBBER_CLIENT_SECRET &&
+      env.JOBBER_OAUTH_CALLBACK_URL
+  );
   const ghlConfigured = Boolean(env.GHL_PRIVATE_INTEGRATION_TOKEN && env.GHL_LOCATION_ID);
   const supabase = await checkSupabaseConnection();
   const ghl = await verifyGhlConnection();
+  const jobber = await getJobberConnectionSummary();
+
+  const jobberBanner = (() => {
+    if (params.jobber === "connected") {
+      return {
+        tone: "ok" as const,
+        text: `Jobber connected${params.account ? `: ${params.account}` : ""}.`,
+      };
+    }
+    if (params.jobber === "error") {
+      return {
+        tone: "error" as const,
+        text: `Jobber connection failed: ${params.reason ?? "unknown"}`,
+      };
+    }
+    return null;
+  })();
 
   return (
-    <AdminShell title="Connections" subtitle="Jobber OAuth and GoHighLevel private integration — read-only until Phase 0 audit completes.">
+    <AdminShell
+      title="Connections"
+      subtitle="Jobber OAuth and GoHighLevel private integration — read-only until Phase 0 audit completes."
+    >
       <SettingsSubnav />
+      {jobberBanner ? (
+        <p
+          className={`mb-4 rounded-[10px] border p-3 text-sm ${
+            jobberBanner.tone === "ok"
+              ? "border-[#c8e6d4] bg-[#e9f5ef] text-[#267651]"
+              : "border-[#f6e2b0] bg-[#fff8e9] text-[#685020]"
+          }`}
+        >
+          {jobberBanner.text}
+        </p>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel heading="Supabase">
           <p className="text-sm">
@@ -30,21 +72,49 @@ export default async function ConnectionsPage() {
           {!supabase.ok && supabase.error ? (
             <p className="mt-2 text-xs text-[#657683]">{supabase.error}</p>
           ) : null}
-          <p className="mt-2 text-sm text-[#657683]">
-            Project URL configured in{" "}
-            <code className="text-xs">.env.local</code>. Migrations live in{" "}
-            <code className="text-xs">supabase/migrations/</code>.
-          </p>
         </Panel>
         <Panel heading="Jobber">
-          <p className="text-sm">
-            App credentials: {jobberConfigured ? "configured" : "missing"}
-          </p>
-          <p className="mt-2 text-sm text-[#657683]">
-            OAuth connect and token storage activate in Phase 1 after callback
-            verification. Live authorization must be performed by a Septic Tank
-            Man Jobber admin.
-          </p>
+          {jobber.connected ? (
+            <>
+              <p className="text-sm font-semibold text-[#267651]">OAuth connected</p>
+              <ul className="mt-2 space-y-1 text-xs text-[#657683]">
+                <li>{jobber.accountName}</li>
+                <li>Account ID: {jobber.accountId}</li>
+                {jobber.expiresAt ? (
+                  <li>Token expires: {jobber.expiresAt}</li>
+                ) : null}
+              </ul>
+              <Link
+                href="/api/oauth/jobber/connect"
+                className="mt-4 inline-block text-xs font-medium text-[#1d4654] underline"
+              >
+                Reconnect Jobber
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">
+                App credentials:{" "}
+                {jobberConfigured ? (
+                  <span className="text-[#267651]">ready in env</span>
+                ) : (
+                  <span className="text-[#b45309]">missing env vars</span>
+                )}
+              </p>
+              <p className="mt-2 text-xs text-[#657683]">
+                Septic Tank Man Jobber admin must approve access. No writes until
+                gates are enabled.
+              </p>
+              {jobberConfigured ? (
+                <Link
+                  href="/api/oauth/jobber/connect"
+                  className="mt-4 inline-block rounded-lg bg-[#1c4454] px-4 py-2 text-sm font-semibold text-white hover:bg-[#163a47]"
+                >
+                  Connect Jobber
+                </Link>
+              ) : null}
+            </>
+          )}
         </Panel>
         <Panel heading="GoHighLevel">
           <p className="text-sm">
@@ -67,12 +137,7 @@ export default async function ConnectionsPage() {
             </ul>
           ) : ghl.error ? (
             <p className="mt-2 text-xs text-[#657683]">{ghl.error}</p>
-          ) : (
-            <p className="mt-2 text-sm text-[#657683]">
-              Set GHL_PRIVATE_INTEGRATION_TOKEN and GHL_LOCATION_ID in Vercel /
-              .env.local (Septic Tank Man sub-account only).
-            </p>
-          )}
+          ) : null}
         </Panel>
       </div>
     </AdminShell>
