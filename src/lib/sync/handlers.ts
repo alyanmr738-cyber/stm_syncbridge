@@ -70,8 +70,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     return;
   }
 
-  let ghlId: string | undefined =
-    decision.kind === "linked" ? undefined : undefined;
+  let ghlId: string | undefined;
   const supabase = getSupabaseAdmin();
   if (decision.kind === "linked") {
     const linked = supabase
@@ -153,7 +152,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
 
 export async function syncGhlContact(event: LoadedEvent): Promise<void> {
   const payload = event.payload;
-  let ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
+  const ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
   if (!ghlId || ghlId === "unknown") return;
   const live = await getGhlContact(ghlId);
   const email = normalizeEmail(String(payload.email ?? live?.email ?? ""));

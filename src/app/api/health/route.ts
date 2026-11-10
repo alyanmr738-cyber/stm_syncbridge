@@ -7,6 +7,7 @@ export async function GET() {
     service: "syncbridge",
     jobberApiVersion: JOBBER_SUPPORTED_API_VERSION,
     queueScheduler: "webhook-drain+minute-cron",
+    gitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     flags: featureFlagsSnapshot(),
   });
 }

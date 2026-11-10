@@ -127,6 +127,7 @@ export function SettingsSubnav() {
     { href: "/settings/connections", label: "Connections" },
     { href: "/settings/mappings", label: "Mappings" },
     { href: "/settings/audit", label: "Audit" },
+    { href: "/settings/import", label: "Import" },
   ];
   return (
     <div className="mb-6 flex flex-wrap gap-2">

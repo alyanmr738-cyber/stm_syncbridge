@@ -40,9 +40,20 @@ Webhook returns **503** if persist fails (Jobber will retry). Do not ack without
 3. Rotate `TOKEN_ENCRYPTION_KEY_BASE64` only with a migration plan (existing blobs become unreadable).
 4. Rotate `ADMIN_SESSION_SECRET` logs everyone out.
 
+## Launch gates (remain OFF until written approval)
+
+| Gate | Env | Effect |
+|------|-----|--------|
+| A | `SYNC_ENABLED` + `OUTBOUND_WRITES_ENABLED` | All Jobber/GHL record writes |
+| Pilot | `PILOT_JOBBER_CLIENT_IDS` / `PILOT_GHL_CONTACT_IDS` / `PILOT_JOBBER_JOB_IDS` / `PILOT_GHL_OPPORTUNITY_IDS` | Writes only for those ids; **not** Gate A |
+| B | `HISTORICAL_IMPORT_ENABLED` | Historical execute (dry-run never writes) |
+| C | `CUSTOMER_MESSAGING_ENABLED` + `REVIEW_TRIGGER_ENABLED` | Review/customer messages |
+
+Booking stays `pending_jobber_confirmation` until Jobber reservation is proven.
+
 ## Rollback
 
-Vercel → previous Ready deployment → Promote. Keep gates A/B/C false.
+Vercel → previous Ready deployment → Promote. Keep gates A/B/C false. Clear `PILOT_*`.
 
 ## Webhooks
 

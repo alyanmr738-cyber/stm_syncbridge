@@ -27,7 +27,8 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
     id: payload.syncEventId,
     source: payload.source,
     eventKind: (row?.event_kind as string) ?? payload.eventKind,
-    providerEntityId: (row?.provider_entity_id as string | null) ?? null,
+    providerEntityId:
+      (row?.provider_entity_id as string | null) ?? payload.providerEntityId ?? null,
     payload: (row?.payload as Record<string, unknown>) ?? {},
   };
   const kind = event.eventKind.toUpperCase();

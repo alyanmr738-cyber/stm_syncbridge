@@ -1,8 +1,27 @@
 # Pilot dry-run preview — not activated
 
-**Links in production DB:** `customer_links` = 0, `job_links` = 0. There are **no existing linked records** to use.
+**Links in production DB:** `customer_links` = 0, `job_links` = 0.
 
-Rule: use existing linked records only unless separately authorized. Therefore **pilot writes cannot start** until an operator:
+**Proposed update-only pair (NOT executed; awaiting written approval):**
+
+| System | Record | Before-state (2026-11-10) |
+|--------|--------|---------------------------|
+| Jobber client | `Z2lkOi8vSm9iYmVyL0NsaWVudC8zMTQxNDUwMA==` | ALEX / TETIYEVKI · alext@usa.net · (201) 259-0233 |
+| GHL contact | `6fphEggI2IDws4TlmD6Q` | ALEX / TETIYEVSKY · alext@usa.net · +12012595233 · location `p7HYMD0h2RScLKL68uj0` |
+
+Match: **unique email** `alext@usa.net`. Phones differ by one digit (`259-0233` vs `259-5233`) — **do not overwrite phone** on the first write. Last-name spelling differs (`TETIYEVKI` vs `TETIYEVSKY`).
+
+**Planned writes after approval (Gate A remains off):**
+
+1. Set Vercel env only:
+   `PILOT_JOBBER_CLIENT_IDS=Z2lkOi8vSm9iYmVyL0NsaWVudC8zMTQxNDUwMA==`
+   `PILOT_GHL_CONTACT_IDS=6fphEggI2IDws4TlmD6Q`
+2. Trigger Jobber `CLIENT_UPDATE` (or admin replay) → GHL **PUT** contact `6fphEggI2IDws4TlmD6Q` name fields only if operator confirms last-name change; **no POST**, **no new Jobber client**, **no opportunity**, **no message**.
+3. Reverse GHL ContactUpdate → Jobber `clientEdit` then GHL PUT from Jobber (authoritative). Confirm last-name / phone policy before this step.
+
+Messaging: SyncBridge Gate C off. Native GHL **Z7 Contact Update → Zapier** may still fire — operator must confirm that workflow is off or safe for this contact.
+
+Rule: use existing records only. Pilot writes cannot start until an operator:
 
 1. Names a real Jobber client GID and the **already-existing** GHL contact id to update (no `POST /contacts/`).
 2. Optionally names a Jobber job GID + existing GHL opportunity id for completion-stage test.
