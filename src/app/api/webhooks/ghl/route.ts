@@ -5,7 +5,17 @@ import { persistAndEnqueue } from "@/services/events/inbox";
 export async function POST(request: Request) {
   const env = getEnv();
   const raw = Buffer.from(await request.arrayBuffer());
-  const requireSig = env.APP_ENV === "production";
+  const shared = env.GHL_WEBHOOK_SECRET ?? process.env.GHL_WEBHOOK_SECRET;
+  if (shared) {
+    const presented =
+      request.headers.get("x-ghl-webhook-secret") ??
+      request.headers.get("x-webhook-secret") ??
+      "";
+    if (presented !== shared) {
+      return Response.json({ error: "Invalid GHL webhook secret" }, { status: 401 });
+    }
+  }
+  const requireSig = Boolean(process.env.GHL_WEBHOOK_PUBLIC_KEY);
   const ok = verifyGhlSignature({
     rawBody: raw,
     signatureHeader:
@@ -13,7 +23,7 @@ export async function POST(request: Request) {
       request.headers.get("x-wh-signature"),
     timestampHeader: request.headers.get("x-ghl-timestamp"),
     publicKeyPem: process.env.GHL_WEBHOOK_PUBLIC_KEY,
-    require: requireSig && Boolean(process.env.GHL_WEBHOOK_PUBLIC_KEY),
+    require: requireSig,
   });
   if (!ok) {
     return Response.json({ error: "Invalid GHL signature" }, { status: 401 });

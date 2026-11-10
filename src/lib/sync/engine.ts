@@ -1,18 +1,38 @@
-import { getEnv } from "@/lib/config/env";
-import {
-  assertOutboundWrite,
-  GateClosedError,
-} from "@/lib/config/feature-flags";
-import { getSchedulingPolicy } from "@/lib/config/scheduling-policy";
+import { GateClosedError } from "@/lib/config/feature-flags";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import type { QueueJobPayload } from "@/lib/queue/types";
+import {
+  syncAiSummary,
+  syncBooking,
+  syncGhlContact,
+  syncJobClosed,
+  syncJobberClient,
+  syncJobberJob,
+  syncQuoteOrInvoice,
+  type LoadedEvent,
+} from "@/lib/sync/handlers";
 
 export async function processSyncEvent(payload: QueueJobPayload): Promise<void> {
-  const env = getEnv();
-  const kind = payload.eventKind.toUpperCase();
+  const supabase = getSupabaseAdmin();
+  const loaded = supabase
+    ? await supabase
+        .from("sync_events")
+        .select("id, source, event_kind, provider_entity_id, payload")
+        .eq("id", payload.syncEventId)
+        .maybeSingle()
+    : { data: null };
+  const row = loaded.data;
+
+  const event: LoadedEvent = {
+    id: payload.syncEventId,
+    source: payload.source,
+    eventKind: (row?.event_kind as string) ?? payload.eventKind,
+    providerEntityId: (row?.provider_entity_id as string | null) ?? null,
+    payload: (row?.payload as Record<string, unknown>) ?? {},
+  };
+  const kind = event.eventKind.toUpperCase();
 
   if (kind === "APP_DISCONNECT") {
-    const supabase = getSupabaseAdmin();
     await supabase
       ?.from("sync_connections")
       .update({ status: "reauthorization_required" })
@@ -21,45 +41,47 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
   }
 
   try {
-    if (needsWrite(kind)) {
-      assertOutboundWrite(`${payload.source}:${kind}`);
+    if (/CLIENT_CREATE|CLIENT_UPDATE|CLIENT\.CREATE|CLIENT\.UPDATE/.test(kind) && event.source === "jobber") {
+      await syncJobberClient(event);
+      return;
+    }
+    if (/CONTACT|CUSTOMER/.test(kind) && event.source === "ghl") {
+      await syncGhlContact(event);
+      return;
+    }
+    if (/APPOINTMENT|BOOKING|VISIT_CREATE/.test(kind)) {
+      await syncBooking(event);
+      return;
+    }
+    if (/JOB_CLOSED|JOB\.COMPLETED|JOB_COMPLETE/.test(kind)) {
+      await syncJobClosed(event);
+      return;
+    }
+    if (/JOB_|JOB\.|VISIT_/.test(kind) && event.source === "jobber") {
+      await syncJobberJob(event);
+      return;
+    }
+    if (/QUOTE|ESTIMATE/.test(kind)) {
+      await syncQuoteOrInvoice(event, "quote");
+      return;
+    }
+    if (/INVOICE/.test(kind)) {
+      await syncQuoteOrInvoice(event, "invoice");
+      return;
+    }
+    if (/SUMMARY|AI_NOTE|CONVERSATION_SUMMARY/.test(kind)) {
+      await syncAiSummary(event);
     }
   } catch (e) {
     if (e instanceof GateClosedError) {
       await markSuppressed(payload.syncEventId, e.message);
-      if (isBooking(kind)) {
-        await recordPendingBooking(payload, e.message);
+      if (/APPOINTMENT|VISIT_CREATE|BOOKING/.test(kind)) {
+        await syncBooking(event);
       }
       return;
     }
     throw e;
   }
-
-  if (isBooking(kind)) {
-    const policy = getSchedulingPolicy();
-    if (!policy.autoSchedulingEnabled || env.EMERGENCY_AUTO_BOOK_ENABLED) {
-      await recordPendingBooking(
-        payload,
-        policy.autoSchedulingEnabled
-          ? "Emergency auto-book remains disabled"
-          : "Scheduling buffers unset — pending_jobber_confirmation"
-      );
-      return;
-    }
-  }
-
-  if (kind.includes("JOB_CLOSED") || kind === "JOB.COMPLETED") {
-    await handleJobClosed(payload);
-    return;
-  }
-}
-
-function needsWrite(kind: string): boolean {
-  return /CREATE|UPDATE|CLOSED|COMPLETE|APPOINTMENT|BOOKING/.test(kind);
-}
-
-function isBooking(kind: string): boolean {
-  return /APPOINTMENT|VISIT_CREATE|BOOKING/.test(kind);
 }
 
 async function markSuppressed(eventId: string, reason: string): Promise<void> {
@@ -72,44 +94,4 @@ async function markSuppressed(eventId: string, reason: string): Promise<void> {
       processed_at: new Date().toISOString(),
     })
     .eq("id", eventId);
-}
-
-async function recordPendingBooking(
-  payload: QueueJobPayload,
-  reason: string
-): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return;
-  await supabase.from("appointment_links").insert({
-    ghl_appointment_id: payload.syncEventId,
-    booking_state: "pending_jobber_confirmation",
-  });
-  await supabase.from("sync_conflicts").insert({
-    source_event_id: payload.syncEventId,
-    entity_type: "booking",
-    source_entity_id: payload.syncEventId,
-    reason: "pending_jobber_confirmation",
-    details_redacted: { note: reason },
-  });
-}
-
-async function handleJobClosed(payload: QueueJobPayload): Promise<void> {
-  const env = getEnv();
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return;
-  if (!env.JOB_COMPLETION_SYNC_ENABLED) {
-    await markSuppressed(payload.syncEventId, "JOB_COMPLETION_SYNC_ENABLED=false");
-    return;
-  }
-  if (!env.CUSTOMER_MESSAGING_ENABLED || !env.REVIEW_TRIGGER_ENABLED) {
-    await supabase.from("review_deliveries").upsert(
-      {
-        jobber_account_id: "connected",
-        jobber_job_id: payload.syncEventId,
-        status: "suppressed",
-        failure_reason_redacted: "customer_messaging gate OFF",
-      },
-      { onConflict: "jobber_account_id,jobber_job_id,review_kind" }
-    );
-  }
 }

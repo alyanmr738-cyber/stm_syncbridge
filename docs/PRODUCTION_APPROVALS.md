@@ -8,4 +8,6 @@
 | B Historical backfill | `HISTORICAL_IMPORT_ENABLED` | — | — | — | — | Set env false + stop importer |
 | C Customer messaging | `CUSTOMER_MESSAGING_ENABLED` | — | — | — | — | Set env false; halt review dispatch |
 
-To activate a gate: written owner approval, named test records, then set env on Vercel Production only, redeploy, watch queue/dead-letter for 24h.
+To activate a **named-record pilot** (preferred): set `PILOT_ENTITY_IDS` to the approved Jobber/GHL ids only. Do not set `OUTBOUND_WRITES_ENABLED=true`.
+
+To activate a **gate**: written owner approval, named test records, then set env on Vercel Production only, redeploy, watch queue/dead-letter for 24h.

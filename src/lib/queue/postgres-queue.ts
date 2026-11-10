@@ -92,13 +92,20 @@ export class PostgresEventQueue implements EventQueue {
         .update({ status: "completed", updated_at: new Date().toISOString() })
         .eq("id", job.id)
         .eq("lease_owner", owner);
-      await supabase
+      const { data: after } = await supabase
         .from("sync_events")
-        .update({
-          status: "succeeded",
-          processed_at: new Date().toISOString(),
-        })
-        .eq("id", event.id);
+        .select("status")
+        .eq("id", event.id)
+        .maybeSingle();
+      if (after?.status !== "suppressed") {
+        await supabase
+          .from("sync_events")
+          .update({
+            status: "succeeded",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", event.id);
+      }
     } catch (e) {
       const attempt = (job.attempt ?? 0) + 1;
       const dead = attempt >= (job.max_attempts ?? 8);

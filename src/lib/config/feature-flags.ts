@@ -33,10 +33,40 @@ export function assertGate(
   }
 }
 
+export function pilotEntityIds(): string[] {
+  return getEnv()
+    .PILOT_ENTITY_IDS?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+}
+
+export function isPilotEntity(id?: string | null): boolean {
+  if (!id) return false;
+  return pilotEntityIds().includes(id);
+}
+
+/** Unrestricted Gate A, or every listed id is on the pilot allowlist. */
+export function canWriteForEntities(entityIds: Array<string | null | undefined>): boolean {
+  if (canWriteToProviders()) return true;
+  const ids = entityIds.filter((id): id is string => Boolean(id));
+  if (ids.length === 0) return false;
+  const allow = new Set(pilotEntityIds());
+  if (allow.size === 0) return false;
+  return ids.every((id) => allow.has(id));
+}
+
 export function assertOutboundWrite(operation: string): void {
   if (!canWriteToProviders()) {
     throw new GateClosedError("production_writes", operation);
   }
+}
+
+export function assertWriteForEntities(
+  operation: string,
+  entityIds: Array<string | null | undefined>
+): void {
+  if (canWriteForEntities(entityIds)) return;
+  throw new GateClosedError("production_writes", operation);
 }
 
 export class GateClosedError extends Error {

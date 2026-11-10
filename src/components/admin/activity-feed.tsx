@@ -27,7 +27,9 @@ export async function ActivityFeed({ heading = "Recent sync activity" }: { headi
                 className={`h-[9px] w-[9px] shrink-0 rounded-full ${
                   e.status === "dead_letter" || e.status === "failed"
                     ? "bg-[#d49b35]"
-                    : "bg-[#4aa77c]"
+                    : e.status === "suppressed"
+                      ? "bg-[#71808b]"
+                      : "bg-[#4aa77c]"
                 }`}
               />
               <div className="min-w-0 flex-1">
