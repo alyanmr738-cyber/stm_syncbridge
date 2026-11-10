@@ -7,7 +7,10 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-jobber-hmac-sha256");
   const secret = getEnv().JOBBER_CLIENT_SECRET;
 
-  if (secret && !verifyJobberWebhook(raw, signature, secret)) {
+  if (!secret) {
+    return Response.json({ error: "Webhook secret not configured" }, { status: 503 });
+  }
+  if (!verifyJobberWebhook(raw, signature, secret)) {
     return Response.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -19,15 +22,21 @@ export async function POST(request: Request) {
   }
 
   const topic = String(payload.topic ?? payload.event ?? "unknown");
-  const entityId = String(payload.itemId ?? payload.id ?? "unknown");
+  const entityId = String(
+    payload.itemId ?? payload.id ?? payload.data ?? "unknown"
+  );
 
-  await persistAndEnqueue({
-    source: "jobber",
-    eventKind: topic,
-    providerEventKey: `${topic}:${entityId}:${payload.occurredAt ?? Date.now()}`,
-    providerEntityId: entityId,
-    payload,
-  });
+  try {
+    await persistAndEnqueue({
+      source: "jobber",
+      eventKind: topic,
+      providerEventKey: `${topic}:${entityId}:${String(payload.occurredAt ?? payload.time ?? "")}`,
+      providerEntityId: entityId,
+      payload,
+    });
+  } catch {
+    return Response.json({ error: "Not durable" }, { status: 503 });
+  }
 
   return Response.json({ received: true });
 }

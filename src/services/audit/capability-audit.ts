@@ -65,6 +65,9 @@ export async function runCapabilityAudit(): Promise<CapabilityAuditReport> {
   const mode =
     env.USE_PROVIDER_MOCKS === true ? "mock" : ("live_readonly" as const);
 
+  const { runLiveDiscovery } = await import("@/services/audit/live-discovery");
+  const live = mode === "live_readonly" ? await runLiveDiscovery().catch(() => null) : null;
+
   const [jobberProbes, ghlProbes, jobberTz, ghlTz] = await Promise.all([
     jobber.probeCapabilities(),
     ghl.probeCapabilities(),
@@ -96,8 +99,33 @@ export async function runCapabilityAudit(): Promise<CapabilityAuditReport> {
     ...INTEGRATION_ROWS,
   ];
 
-  const jTz = jobberTz.timezone;
-  const gTz = ghlTz.timezone;
+  if (live?.jobber.queryHits.length) {
+    matrix.unshift({
+      operation: "live GraphQL query surface (filtered)",
+      provider: "jobber",
+      accountVerified: true,
+      discoveryEvidence: live.jobber.queryHits.slice(0, 20).join(", "),
+      fallback: "pending_jobber_confirmation",
+      recommendedPath: live.jobber.availabilityLikely
+        ? "Verify named availability fields before auto-confirm"
+        : "No availability-like names found — pending path",
+    });
+  }
+  if (live?.ghl.pipelines.length) {
+    matrix.unshift({
+      operation: "GHL pipelines discovered",
+      provider: "ghl",
+      accountVerified: true,
+      discoveryEvidence: live.ghl.pipelines
+        .map((p) => `${p.name} (${p.stages.length} stages)`)
+        .join("; "),
+      fallback: "Admin mapping",
+      recommendedPath: "Map Completed Job stage before enabling writes",
+    });
+  }
+
+  const jTz = live?.jobber.timezone ?? jobberTz.timezone;
+  const gTz = live?.ghl.timezone ?? ghlTz.timezone;
   const tzMatch =
     jTz && gTz ? jTz.toLowerCase() === gTz.toLowerCase() : null;
 

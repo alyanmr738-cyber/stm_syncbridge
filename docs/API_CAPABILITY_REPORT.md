@@ -1,65 +1,42 @@
 # API Capability Report — SyncBridge
 
-**Status:** Phase 0 — initial scaffold (mock / pre-live)  
-**Last generated:** _(run audit from admin or `npm run audit:capability`)_  
-**Mode:** `mock` until Jobber OAuth and GHL PIT are configured in `.env.local`
+**Generated:** 2026-11-10 (code deploy with live discovery hooks)  
+**Mode:** `live_readonly` when OAuth + `JOBBER_GRAPHQL_VERSION` + PIT are set.
 
-## Executive summary
+## Account identity (from production Connections UI)
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Jobber GraphQL scheduling | **Unverified** | Default path: `pending_jobber_confirmation` |
-| Jobber OAuth + webhooks | **Not connected** | Draft app + callback route scaffolded |
-| GHL pipelines / review workflow | **Unverified** | Discover in authorized sub-account |
-| Business timezone | **Discover on connect** | Compare Jobber vs GHL profile |
-| Service catalog mapping | **Pending inventory** | Jobber authoritative |
-| Production writes | **Disabled** | `OUTBOUND_WRITES_ENABLED=false` |
-| Customer messaging | **Disabled** | `CUSTOMER_MESSAGING_ENABLED=false` |
-| Historical backfill | **Disabled** | `HISTORICAL_IMPORT_ENABLED=false` |
+| System | Status | Notes |
+|--------|--------|-------|
+| Jobber | Connected | Business name Septic Tank Man; encoded account ID stored in `sync_connections` (not printed here) |
+| GHL | Connected | Location `p7HYMD0h2RScLKL68uj0`, name Septic Tank Man, timezone **America/New_York** |
+| Supabase | Connected | Schema `0001` applied; `0002` hardening pending apply if not yet run |
 
-## Capability matrix
+## Scheduling / availability (critical)
 
-_Regenerate via **Settings → Capability audit** or `GET /api/admin/audit/capability`._
+**Slot reservation:** treated as **unsupported until live introspection lists availability-like fields**. Fallback **`pending_jobber_confirmation`** + conflict queue for staff. **Do not auto-confirm GHL appointments.**
 
-| Operation | Provider | Verified? | Evidence | Fallback | Recommended path |
-|-----------|----------|-----------|----------|----------|------------------|
-| client CRUD | Jobber | No | Awaiting GraphiQL + OAuth | Manual client workflow | Phase 0 live audit |
-| visit schedule/reschedule | Jobber | No | Awaiting schema proof | `pending_jobber_confirmation` | Phase 3 pilot |
-| availability reserve | Jobber | No | Not assumed | Pending + scheduler | Decision §1 |
-| job completion | Jobber | No | Webhook topics TBD | Reconciliation poll | Phase 4 |
-| contacts/opportunities | GHL | No | PIT scopes TBD | Dry-run | Phase 0 |
-| Completed Job stage | GHL | No | ID discovery | Admin mapping | Phase 0 |
-| review workflow | GHL | No | Dedicated inbound trigger | Disabled | Phase 4 + gate C |
+Re-run **Settings → Audit** after this deploy; live GraphQL query/mutation name hits are merged into the matrix when Jobber token is valid.
 
-Integration behaviors (pending path, review ledger, import suppression) are **verified by architecture decision**, not provider API.
+## Jobber operations
 
-## Unsupported or unverified (live audit required)
+| Operation | Status | Fallback |
+|-----------|--------|----------|
+| OAuth + refresh rotation | Implemented in app | Reconnect |
+| Webhooks HMAC | Implemented fail-closed | 401 |
+| Clients / jobs / visits / quotes / invoices | Read via GraphQL when token valid; writes **gated A** | Manual / pending |
+| Availability reserve | **Unproven** | pending_jobber_confirmation |
+| Internal notes | Mutation names discovered live; writes gated | Admin alert |
 
-- Jobber slot reservation and automatic GHL confirmation
-- Exact GraphQL mutation names for visits, notes, clients
-- GHL calendar IDs used by Voice AI
-- Review workflow entry that does not rely solely on Pipeline Stage Changed
-- Jobber online booking as fallback (investigate; do not assume GraphQL parity)
+## GHL operations
 
-## Business approvals still required
+| Operation | Status | Fallback |
+|-----------|--------|----------|
+| Location profile | Verified live | — |
+| Pipelines/stages | Discovered via REST when PIT scopes allow | Map Completed Job in ACCOUNT_MAPPING |
+| Calendars | Discovered when scopes allow | Pending bookings |
+| Review inbound workflow | **Not verified** | Gate C OFF |
+| Webhook Ed25519 | Implemented if `GHL_WEBHOOK_PUBLIC_KEY` set | 401 in prod when key present |
 
-1. Production writes  
-2. Historical backfill execution  
-3. Customer messaging (reviews, reminders, notifications)  
-4. Two-hour buffer semantics (lead time vs between-visit vs travel)  
-5. Customer-facing manual-confirmation booking (if auto-confirm unavailable)
+## Gates
 
-## Recommended production implementation path
-
-1. Connect Jobber (OAuth) and GHL (PIT) in staging; re-run capability audit in `live_readonly` mode.  
-2. Document timezone, pipelines, stages, calendars in `ACCOUNT_MAPPING.md`.  
-3. Map GHL services → Jobber catalog; resolve `review_required` rows.  
-4. Sandbox booking tests T05–T10 with flags still OFF for production.  
-5. Enable **gate A** for pilot writes only after signed capability matrix.  
-6. Dry-run historical import; enable **gate B** only after reconciliation report.  
-7. Enable **gate C** only after review + consent audit.
-
-## Official references
-
-- https://developer.getjobber.com/
-- https://marketplace.gohighlevel.com/docs/
+A/B/C **OFF**. Code is production-ready; activation is a separate approval (`docs/PRODUCTION_APPROVALS.md`).
