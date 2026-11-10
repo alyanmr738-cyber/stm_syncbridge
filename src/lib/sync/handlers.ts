@@ -9,6 +9,7 @@ import {
   editJobberClient,
   fetchJobberClient,
   fetchJobberJob,
+  isJobberEncodedId,
 } from "@/lib/jobber/ops";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { normalizeEmail, normalizePhone } from "@/lib/sync/identity";
@@ -29,18 +30,18 @@ export type LoadedEvent = {
 };
 
 function emailsFromClient(client: Awaited<ReturnType<typeof fetchJobberClient>>) {
-  return client?.emails?.nodes?.map((n) => n.address).filter(Boolean) as string[] | undefined;
+  return client?.emails?.map((n) => n.address).filter(Boolean) as string[] | undefined;
 }
 
 export async function syncJobberClient(event: LoadedEvent): Promise<void> {
   const clientId = event.providerEntityId;
-  if (!clientId || clientId.startsWith("phase1-probe-")) {
+  if (!isJobberEncodedId(clientId)) {
     return;
   }
   const client = await fetchJobberClient(clientId);
   if (!client) return;
   const email = emailsFromClient(client)?.[0];
-  const phone = client.phones?.nodes?.[0]?.number;
+  const phone = client.phones?.[0]?.number;
   const decision = await matchCustomer({
     jobberClientId: client.id,
     email,
@@ -90,7 +91,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     ghlContactId: ghlId,
     creatingGhlContact: !ghlId,
   });
-  const prop = client.properties?.nodes?.[0]?.address;
+  const prop = client.clientProperties?.nodes?.[0]?.address;
   const contact = await upsertGhlContact({
     id: ghlId,
     firstName: client.firstName ?? undefined,
@@ -109,7 +110,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     last_jobber_revision: JSON.stringify({ email, phone, name: client.name }),
   });
   const supabaseWrite = getSupabaseAdmin();
-  for (const property of client.properties?.nodes ?? []) {
+  for (const property of client.clientProperties?.nodes ?? []) {
     if (!linkId || !property.id) continue;
     await supabaseWrite?.from("property_links").upsert(
       {
@@ -182,7 +183,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       firstName: authoritative?.firstName ?? undefined,
       lastName: authoritative?.lastName ?? undefined,
       email: aEmail,
-      phone: normalizePhone(authoritative?.phones?.nodes?.[0]?.number) ?? undefined,
+      phone: normalizePhone(authoritative?.phones?.[0]?.number) ?? undefined,
     });
     await upsertCustomerLink({
       jobber_client_id: jobberId,
@@ -241,7 +242,7 @@ export async function syncBooking(event: LoadedEvent): Promise<void> {
 
 export async function syncJobberJob(event: LoadedEvent): Promise<void> {
   const jobId = event.providerEntityId;
-  if (!jobId) return;
+  if (!isJobberEncodedId(jobId)) return;
   const job = await fetchJobberJob(jobId);
   if (!job) return;
   const existing = await findJobLink({ jobberJobId: job.id });

@@ -10,12 +10,17 @@ export type JobberClient = {
   firstName?: string | null;
   lastName?: string | null;
   name?: string | null;
-  emails?: { nodes?: { address?: string }[] };
-  phones?: { nodes?: { number?: string }[] };
-  properties?: { nodes?: JobberProperty[] };
+  emails?: { address?: string }[];
+  phones?: { number?: string }[];
+  clientProperties?: { nodes?: JobberProperty[] };
 };
 
+export function isJobberEncodedId(id?: string | null): boolean {
+  return Boolean(id && id.startsWith("Z2lkOi8v"));
+}
+
 export async function fetchJobberClient(id: string): Promise<JobberClient | null> {
+  if (!isJobberEncodedId(id)) return null;
   const data = await jobberGraphql<{ client: JobberClient | null }>(
     `query Client($id: EncodedId!) {
       client(id: $id) {
@@ -23,9 +28,11 @@ export async function fetchJobberClient(id: string): Promise<JobberClient | null
         firstName
         lastName
         name
-        emails { nodes { address } }
-        phones { nodes { number } }
-        properties { nodes { id address { street1 city postalCode } } }
+        emails { address }
+        phones { number }
+        clientProperties(first: 10) {
+          nodes { id address { street1 city postalCode } }
+        }
       }
     }`,
     { id }
@@ -98,6 +105,7 @@ export async function fetchJobberJob(id: string): Promise<{
   jobStatus?: string;
   client?: { id: string };
 } | null> {
+  if (!isJobberEncodedId(id)) return null;
   const data = await jobberGraphql<{
     job: { id: string; jobStatus?: string; client?: { id: string } } | null;
   }>(

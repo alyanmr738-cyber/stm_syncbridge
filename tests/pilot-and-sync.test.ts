@@ -7,6 +7,7 @@ import {
 } from "@/lib/config/feature-flags";
 import { pilotAllows } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
+import { isJobberEncodedId } from "@/lib/jobber/ops";
 import { processSyncEvent } from "@/lib/sync/engine";
 import { decideMatch } from "@/lib/sync/identity";
 
@@ -83,6 +84,13 @@ describe("typed pilot scope", () => {
         ghlContactId: "ghl-contact-1",
       })
     ).toBe(true);
+  });
+});
+
+describe("Jobber encoded ids", () => {
+  it("rejects probe strings so GraphQL is not called", () => {
+    expect(isJobberEncodedId("final-verify-1")).toBe(false);
+    expect(isJobberEncodedId("Z2lkOi8vSm9iYmVyL0NsaWVudC8x")).toBe(true);
   });
 });
 

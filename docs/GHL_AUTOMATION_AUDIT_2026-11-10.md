@@ -1,6 +1,8 @@
 # GHL workflow audit — Septic Tank Man (`p7HYMD0h2RScLKL68uj0`)
 
-Pulled live `GET /workflows/?locationId=…` 2026-11-10. The list API returns **name/status only**, not trigger graphs. Names plus published vs draft are used below. Confirm trigger bodies in the GHL UI before any Gate A or pilot **create** writes.
+Pulled live `GET /workflows/?locationId=…` 2026-11-10. The list API returns **name/status only**, not trigger graphs.
+
+`GET /workflows/{id}/definition?locationId=…` (Version `v3`) returns **403** `WORKFLOW_API_NOT_ENABLED_FOR_LOCATION` for Septic Tank Man. Triggers, filters, and action steps **cannot** be exported via API. Do not treat name-based inference as a substitute for GHL UI inspection. Workflows were not disabled or edited.
 
 ## Published workflows that can affect messaging or downstream systems
 
