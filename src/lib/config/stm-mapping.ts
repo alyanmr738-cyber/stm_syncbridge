@@ -5,4 +5,11 @@ export const STM_GHL = {
   jobCompletedStageId: "1724dc1d-02f1-422c-825f-bebb9d427e71",
   jobScheduledStageId: "c6fb20fd-a318-450c-97ce-d1a067f3d6c9",
   retiredCalendarId: "Xys7KBfpx40InGkeACLX",
+  fields: {
+    jobberClientId: "saS3lqgdYaw8RPz95NZd",
+    lastSyncTimestamp: "YdnL6Ytkmty67QcocRxb",
+    lastSyncedFrom: "h8x2TcJPlfSRgzx7bBWp",
+    lastSyncedBy: "mWRGLgOK71XqMg9oR5Oj",
+    aiSummary: "WARBojf4fbl5eWFIXomP",
+  },
 } as const;

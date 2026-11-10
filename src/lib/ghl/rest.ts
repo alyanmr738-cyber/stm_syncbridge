@@ -54,14 +54,53 @@ export type GhlContact = {
   lastName?: string;
   email?: string;
   phone?: string;
+  contactName?: string;
 };
+
+export type GhlOpportunity = {
+  id: string;
+  name?: string;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  contactId?: string;
+};
+
+export async function getGhlContact(id: string): Promise<GhlContact | null> {
+  try {
+    const json = await ghlGet<{ contact: GhlContact }>(`/contacts/${id}`);
+    return json.contact ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
   const loc = stmLocationId();
+  const q = query.trim();
+  if (!q) return [];
   const json = await ghlGet<{ contacts?: GhlContact[] }>(
-    `/contacts/?locationId=${encodeURIComponent(loc)}&query=${encodeURIComponent(query)}`
+    `/contacts/?locationId=${encodeURIComponent(loc)}&query=${encodeURIComponent(q)}`
   );
-  return json.contacts ?? [];
+  if (json.contacts?.length) return json.contacts;
+  const phoneJson = await ghlGet<{ contacts?: GhlContact[] }>(
+    `/contacts/?locationId=${encodeURIComponent(loc)}&phone=${encodeURIComponent(q)}`
+  );
+  return phoneJson.contacts ?? [];
+}
+
+export async function searchGhlOpportunities(contactId: string): Promise<GhlOpportunity[]> {
+  const loc = stmLocationId();
+  const json = await ghlGet<{ opportunities?: GhlOpportunity[] }>(
+    `/opportunities/search?location_id=${encodeURIComponent(loc)}&contact_id=${encodeURIComponent(contactId)}&pipeline_id=${STM_GHL.salesPipelineId}&limit=20`
+  );
+  return json.opportunities ?? [];
+}
+
+export async function addGhlContactNote(contactId: string, body: string): Promise<string | null> {
+  const json = await ghlWrite<{ note?: { id: string } }>("POST", `/contacts/${contactId}/notes`, {
+    body,
+  });
+  return json.note?.id ?? null;
 }
 
 export async function upsertGhlContact(input: {
@@ -73,8 +112,20 @@ export async function upsertGhlContact(input: {
   address1?: string;
   city?: string;
   postalCode?: string;
+  jobberClientId?: string;
 }): Promise<GhlContact> {
   const loc = stmLocationId();
+  const customFields: { id: string; field_value: string }[] = [
+    { id: STM_GHL.fields.lastSyncedFrom, field_value: "jobber" },
+    { id: STM_GHL.fields.lastSyncedBy, field_value: "syncbridge" },
+    { id: STM_GHL.fields.lastSyncTimestamp, field_value: new Date().toISOString() },
+  ];
+  if (input.jobberClientId) {
+    customFields.push({
+      id: STM_GHL.fields.jobberClientId,
+      field_value: input.jobberClientId,
+    });
+  }
   const body = {
     firstName: input.firstName,
     lastName: input.lastName,
@@ -83,6 +134,7 @@ export async function upsertGhlContact(input: {
     address1: input.address1,
     city: input.city,
     postalCode: input.postalCode,
+    customFields,
   };
   if (input.id) {
     const json = await ghlWrite<{ contact: GhlContact }>("PUT", `/contacts/${input.id}`, body);

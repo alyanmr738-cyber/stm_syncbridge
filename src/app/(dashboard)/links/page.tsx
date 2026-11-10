@@ -1,8 +1,9 @@
 import { AdminShell, Panel } from "@/components/admin/shell";
-import { listLinks } from "@/lib/db/admin-lists";
+import { listFinance, listLinks } from "@/lib/db/admin-lists";
 
 export default async function LinksPage() {
   const { customers, jobs } = await listLinks();
+  const { quotes, invoices } = await listFinance();
   return (
     <AdminShell
       title="Customer & job links"
@@ -27,6 +28,26 @@ export default async function LinksPage() {
               j.last_job_status ?? "—",
             ])}
             heads={["Jobber job", "GHL opportunity", "Status"]}
+          />
+        </Panel>
+        <Panel heading={`Quotes (${quotes.length})`}>
+          <LinkTable
+            rows={quotes.map((q) => [
+              q.jobber_quote_id,
+              q.last_status ?? "—",
+              q.ghl_reference ? "GHL note" : "DB only",
+            ])}
+            heads={["Jobber quote", "Status", "GHL"]}
+          />
+        </Panel>
+        <Panel heading={`Invoices (${invoices.length})`}>
+          <LinkTable
+            rows={invoices.map((inv) => [
+              inv.jobber_invoice_id,
+              inv.last_status ?? "—",
+              inv.ghl_reference ? "GHL note" : "DB only",
+            ])}
+            heads={["Jobber invoice", "Status", "GHL"]}
           />
         </Panel>
       </div>

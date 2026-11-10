@@ -65,6 +65,22 @@ export async function listConflicts() {
   return data ?? [];
 }
 
+export async function listFinance() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return { quotes: [], invoices: [] };
+  const { data: quotes } = await supabase
+    .from("quote_links")
+    .select("id, jobber_quote_id, last_status, ghl_reference, last_synced_at")
+    .order("last_synced_at", { ascending: false })
+    .limit(50);
+  const { data: invoices } = await supabase
+    .from("invoice_links")
+    .select("id, jobber_invoice_id, last_status, ghl_reference, last_synced_at")
+    .order("last_synced_at", { ascending: false })
+    .limit(50);
+  return { quotes: quotes ?? [], invoices: invoices ?? [] };
+}
+
 export async function queueHealth() {
   return getEventQueue().stats();
 }

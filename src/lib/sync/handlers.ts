@@ -2,15 +2,27 @@ import { getEnv } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
 import { assertPilotWrite } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
-import { createOpportunity, moveOpportunityStage, searchGhlContacts, upsertGhlContact } from "@/lib/ghl/rest";
+import {
+  addGhlContactNote,
+  createOpportunity,
+  getGhlContact,
+  moveOpportunityStage,
+  searchGhlContacts,
+  searchGhlOpportunities,
+  upsertGhlContact,
+} from "@/lib/ghl/rest";
 import {
   createJobberClient,
   createJobberNote,
   editJobberClient,
   fetchJobberClient,
+  fetchJobberInvoice,
   fetchJobberJob,
+  fetchJobberQuote,
   isJobberEncodedId,
+  searchJobberClients,
 } from "@/lib/jobber/ops";
+import { jobberClientToGhlPayload, jobClosed, quoteInvoiceNoteBody } from "@/lib/sync/matching";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { normalizeEmail, normalizePhone } from "@/lib/sync/identity";
 import {
@@ -72,15 +84,23 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     ghlId = linked.data?.ghl_contact_id ?? undefined;
   }
 
-  if (decision.kind === "create" && email) {
-    const found = await searchGhlContacts(email);
-    if (found.length === 1) ghlId = found[0]!.id;
-    if (found.length > 1) {
+  if (decision.kind === "provider" && decision.ghlContactId) {
+    ghlId = decision.ghlContactId;
+  }
+  if (!ghlId && (email || phone)) {
+    const found = [
+      ...(email ? await searchGhlContacts(email) : []),
+      ...(phone ? await searchGhlContacts(phone) : []),
+    ];
+    const ids = [...new Set(found.map((c) => c.id))];
+    if (ids.length === 1) ghlId = ids[0];
+    if (ids.length > 1) {
       await openConflict({
         eventId: event.id,
         entityType: "customer",
         entityId: client.id,
         reason: "ambiguous_ghl_search",
+        details: { candidateIds: ids },
       });
       return;
     }
@@ -91,16 +111,17 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     ghlContactId: ghlId,
     creatingGhlContact: !ghlId,
   });
-  const prop = client.clientProperties?.nodes?.[0]?.address;
+  const mapped = jobberClientToGhlPayload(client);
   const contact = await upsertGhlContact({
     id: ghlId,
-    firstName: client.firstName ?? undefined,
-    lastName: client.lastName ?? undefined,
-    email,
-    phone: normalizePhone(phone) ?? undefined,
-    address1: prop?.street1,
-    city: prop?.city,
-    postalCode: prop?.postalCode,
+    firstName: mapped.firstName,
+    lastName: mapped.lastName,
+    email: mapped.email,
+    phone: mapped.phone,
+    address1: mapped.address1,
+    city: mapped.city,
+    postalCode: mapped.postalCode,
+    jobberClientId: mapped.jobberClientId,
   });
   const linkId = await upsertCustomerLink({
     jobber_client_id: client.id,
@@ -132,12 +153,13 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
 
 export async function syncGhlContact(event: LoadedEvent): Promise<void> {
   const payload = event.payload;
-  const ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
-  const email = normalizeEmail(String(payload.email ?? ""));
-  const phone = normalizePhone(String(payload.phone ?? ""));
-  const firstName = String(payload.firstName ?? payload.first_name ?? "");
-  const lastName = String(payload.lastName ?? payload.last_name ?? "");
-  if (!ghlId) return;
+  let ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
+  if (!ghlId || ghlId === "unknown") return;
+  const live = await getGhlContact(ghlId);
+  const email = normalizeEmail(String(payload.email ?? live?.email ?? ""));
+  const phone = normalizePhone(String(payload.phone ?? live?.phone ?? ""));
+  const firstName = String(payload.firstName ?? payload.first_name ?? live?.firstName ?? "");
+  const lastName = String(payload.lastName ?? payload.last_name ?? live?.lastName ?? "");
 
   const decision = await matchCustomer({ ghlContactId: ghlId, email, phone });
   if (decision.kind === "ambiguous") {
@@ -151,6 +173,27 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
   }
 
   let jobberId: string | undefined;
+  if (decision.kind === "provider" && decision.jobberClientId) {
+    jobberId = decision.jobberClientId;
+  }
+  if (!jobberId && (email || phone)) {
+    const found = [
+      ...(email ? await searchJobberClients(email) : []),
+      ...(phone ? await searchJobberClients(phone.replace("+1", "")) : []),
+    ];
+    const ids = [...new Set(found.map((c) => c.id))];
+    if (ids.length === 1) jobberId = ids[0];
+    if (ids.length > 1) {
+      await openConflict({
+        eventId: event.id,
+        entityType: "customer",
+        entityId: ghlId,
+        reason: "ambiguous_jobber_search",
+        details: { candidateIds: ids },
+      });
+      return;
+    }
+  }
   if (decision.kind === "linked") {
     const supabase = getSupabaseAdmin();
     const linked = supabase
@@ -246,13 +289,74 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
   const job = await fetchJobberJob(jobId);
   if (!job) return;
   const existing = await findJobLink({ jobberJobId: job.id });
-  if (existing) {
+  if (existing?.ghl_opportunity_id) {
     await upsertJobLink({
       jobber_job_id: job.id,
       last_job_status: job.jobStatus,
     });
     return;
   }
+
+  const supabase = getSupabaseAdmin();
+  let ghlContactId: string | undefined;
+  if (job.client?.id) {
+    const { data } = supabase
+      ? await supabase
+          .from("customer_links")
+          .select("ghl_contact_id")
+          .eq("jobber_client_id", job.client.id)
+          .maybeSingle()
+      : { data: null };
+    ghlContactId = data?.ghl_contact_id ?? undefined;
+  }
+
+  const stageId = jobClosed(job.jobStatus)
+    ? STM_GHL.jobCompletedStageId
+    : STM_GHL.jobScheduledStageId;
+
+  if (ghlContactId) {
+    const opps = await searchGhlOpportunities(ghlContactId);
+    const pipelineOpps = opps.filter((o) => o.pipelineId === STM_GHL.salesPipelineId);
+    if (pipelineOpps.length > 1) {
+      await openConflict({
+        eventId: event.id,
+        entityType: "job",
+        entityId: job.id,
+        reason: "ambiguous_opportunity_match",
+        details: { candidateIds: pipelineOpps.map((o) => o.id) },
+      });
+      await upsertJobLink({
+        jobber_job_id: job.id,
+        last_job_status: job.jobStatus,
+      });
+      return;
+    }
+    if (pipelineOpps.length === 1) {
+      await upsertJobLink({
+        jobber_job_id: job.id,
+        ghl_opportunity_id: pipelineOpps[0]!.id,
+        last_job_status: job.jobStatus,
+      });
+      return;
+    }
+    assertPilotWrite("jobber.job.create_opportunity", {
+      jobberJobId: job.id,
+      ghlContactId,
+      creatingGhlOpportunity: true,
+    });
+    const opp = await createOpportunity({
+      contactId: ghlContactId,
+      name: job.title || job.jobNumber || `Jobber ${job.id}`,
+      stageId,
+    });
+    await upsertJobLink({
+      jobber_job_id: job.id,
+      ghl_opportunity_id: opp.id,
+      last_job_status: job.jobStatus,
+    });
+    return;
+  }
+
   await upsertJobLink({
     jobber_job_id: job.id,
     last_job_status: job.jobStatus,
@@ -317,14 +421,55 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
 }
 
 export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "invoice"): Promise<void> {
+  const env = getEnv();
   const supabase = getSupabaseAdmin();
   const id = event.providerEntityId ?? event.id;
+  const live =
+    kind === "quote"
+      ? isJobberEncodedId(id)
+        ? await fetchJobberQuote(id)
+        : null
+      : isJobberEncodedId(id)
+        ? await fetchJobberInvoice(id)
+        : null;
+  const status =
+    (live && "quoteStatus" in live ? live.quoteStatus : undefined) ??
+    (live && "invoiceStatus" in live ? live.invoiceStatus : undefined) ??
+    String(event.payload.status ?? event.eventKind);
+  const number =
+    (live && "quoteNumber" in live ? live.quoteNumber : undefined) ??
+    (live && "invoiceNumber" in live ? live.invoiceNumber : undefined);
   const table = kind === "quote" ? "quote_links" : "invoice_links";
   const col = kind === "quote" ? "jobber_quote_id" : "jobber_invoice_id";
+
+  let ghlNoteId: string | null = null;
+  const writeFlag = kind === "quote" ? env.ESTIMATE_SYNC_ENABLED : env.INVOICE_SYNC_ENABLED;
+  const clientId = live?.client?.id;
+  if (writeFlag && clientId) {
+    const { data: link } = supabase
+      ? await supabase
+          .from("customer_links")
+          .select("ghl_contact_id")
+          .eq("jobber_client_id", clientId)
+          .maybeSingle()
+      : { data: null };
+    if (link?.ghl_contact_id) {
+      assertPilotWrite(`jobber.${kind}.ghl_note`, {
+        jobberClientId: clientId,
+        ghlContactId: link.ghl_contact_id,
+      });
+      ghlNoteId = await addGhlContactNote(
+        link.ghl_contact_id,
+        quoteInvoiceNoteBody(kind, { id, number, status })
+      );
+    }
+  }
+
   await supabase?.from(table).upsert(
     {
       [col]: id,
-      last_status: String(event.payload.status ?? event.eventKind),
+      last_status: status,
+      ghl_reference: ghlNoteId,
       last_synced_at: new Date().toISOString(),
     },
     { onConflict: col }

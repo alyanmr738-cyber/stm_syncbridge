@@ -15,6 +15,7 @@ export function normalizePhone(value?: string | null): string | null {
 
 export type MatchDecision =
   | { kind: "linked"; customerLinkId: string }
+  | { kind: "provider"; ghlContactId?: string; jobberClientId?: string }
   | { kind: "create" }
   | { kind: "ambiguous"; candidateIds: string[] };
 

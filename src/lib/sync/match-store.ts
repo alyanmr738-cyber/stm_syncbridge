@@ -1,5 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import { searchGhlContacts } from "@/lib/ghl/rest";
+import { searchJobberClients } from "@/lib/jobber/ops";
 import { decideMatch, normalizeEmail, normalizePhone, type MatchDecision } from "@/lib/sync/identity";
+import { collectIdHits } from "@/lib/sync/matching";
 
 export async function matchCustomer(opts: {
   jobberClientId?: string;
@@ -29,16 +32,58 @@ export async function matchCustomer(opts: {
 
   const email = normalizeEmail(opts.email);
   const phone = normalizePhone(opts.phone);
-  const hits: string[] = [];
+  const linkHits: string[] = [];
   const { data: all } = await supabase
     .from("customer_links")
     .select("id, jobber_client_id, ghl_contact_id, last_jobber_revision, last_ghl_revision");
   for (const row of all ?? []) {
     const blob = `${row.last_jobber_revision ?? ""} ${row.last_ghl_revision ?? ""}`;
-    if (email && blob.toLowerCase().includes(email)) hits.push(row.id);
-    if (phone && blob.includes(phone.replace("+", ""))) hits.push(row.id);
+    if (email && blob.toLowerCase().includes(email)) linkHits.push(row.id);
+    if (phone && blob.includes(phone.replace("+", ""))) linkHits.push(row.id);
   }
-  return decideMatch({ exactIdHits: [], emailPhoneHits: hits });
+  if (linkHits.length) {
+    return decideMatch({ exactIdHits: [], emailPhoneHits: linkHits });
+  }
+
+  const queries = [email, phone].filter(Boolean) as string[];
+  const ghlRecords: { id: string; emails?: string[]; phones?: string[] }[] = [];
+  for (const q of queries) {
+    const found = await searchGhlContacts(q);
+    for (const c of found) {
+      ghlRecords.push({
+        id: c.id,
+        emails: c.email ? [c.email] : [],
+        phones: c.phone ? [c.phone] : [],
+      });
+    }
+  }
+  const ghlHits = collectIdHits(ghlRecords, email, phone);
+  if (ghlHits.length === 1) {
+    return { kind: "provider", ghlContactId: ghlHits[0] };
+  }
+  if (ghlHits.length > 1) {
+    return { kind: "ambiguous", candidateIds: ghlHits };
+  }
+
+  const jobberRecords: { id: string; emails?: string[]; phones?: string[] }[] = [];
+  for (const q of queries) {
+    const found = await searchJobberClients(q);
+    for (const c of found) {
+      jobberRecords.push({
+        id: c.id,
+        emails: (c.emails ?? []).map((e) => e.address ?? "").filter(Boolean),
+        phones: (c.phones ?? []).map((p) => p.number ?? "").filter(Boolean),
+      });
+    }
+  }
+  const jobberHits = collectIdHits(jobberRecords, email, phone);
+  if (jobberHits.length === 1) {
+    return { kind: "provider", jobberClientId: jobberHits[0] };
+  }
+  if (jobberHits.length > 1) {
+    return { kind: "ambiguous", candidateIds: jobberHits };
+  }
+  return { kind: "create" };
 }
 
 export async function upsertCustomerLink(row: {
