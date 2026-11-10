@@ -1,17 +1,6 @@
+import { authorizeWorker } from "@/lib/auth/worker-auth";
 import { getEventQueue } from "@/lib/queue";
-import { verifyInternalAction } from "@/lib/webhooks/verify";
 import { processSyncEvent } from "@/services/events/processor";
-
-async function authorized(request: Request, raw: string): Promise<boolean> {
-  const cron = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && cron === `Bearer ${cronSecret}`) return true;
-  const signature = request.headers.get("x-syncbridge-signature");
-  const secret = process.env.INTERNAL_ACTION_SIGNING_SECRET;
-  if (secret && verifyInternalAction(raw, signature, secret)) return true;
-  if (!cronSecret && !secret && process.env.NODE_ENV !== "production") return true;
-  return false;
-}
 
 async function run() {
   const queue = getEventQueue();
@@ -26,14 +15,20 @@ async function run() {
 
 export async function POST(request: Request) {
   const raw = await request.text();
-  if (!(await authorized(request, raw))) {
+  if (!authorizeWorker(request, raw)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   return Response.json(await run());
 }
 
 export async function GET(request: Request) {
-  if (!(await authorized(request, ""))) {
+  if (!process.env.CRON_SECRET) {
+    return Response.json(
+      { error: "CRON_SECRET is required for GET worker" },
+      { status: 503 }
+    );
+  }
+  if (!authorizeWorker(request, "")) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   return Response.json(await run());

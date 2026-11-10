@@ -37,6 +37,12 @@ export class PostgresEventQueue implements EventQueue {
     const supabase = getSupabaseAdmin();
     if (!supabase) return false;
     const now = new Date().toISOString();
+    await supabase
+      .from("queue_jobs")
+      .update({ status: "pending", lease_owner: null, leased_until: null })
+      .eq("status", "leased")
+      .lt("leased_until", now);
+
     const { data: jobs } = await supabase
       .from("queue_jobs")
       .select("id, sync_event_id, attempt, max_attempts")
@@ -57,7 +63,7 @@ export class PostgresEventQueue implements EventQueue {
         updated_at: now,
       })
       .eq("id", job.id)
-      .in("status", ["pending", "leased"])
+      .eq("status", "pending")
       .select("id")
       .maybeSingle();
     if (claimErr || !claimed) return false;
