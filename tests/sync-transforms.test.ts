@@ -99,6 +99,20 @@ describe("jobs and documents", () => {
     expect(jobStageForStatus("active")).toBe("scheduled");
   });
 
+  it("maps Jobber service-complete statuses and ignores invoice payment", () => {
+    expect(jobClosed("requires_invoicing")).toBe(true);
+    expect(jobClosed("Requires Invoicing")).toBe(true);
+    expect(jobClosed("closed")).toBe(true);
+    expect(jobClosed("complete")).toBe(true);
+    expect(jobClosed("completed")).toBe(true);
+    expect(jobClosed("done")).toBe(true);
+    expect(jobClosed("today")).toBe(false);
+    expect(jobClosed("unknown")).toBe(false);
+    expect(jobClosed("paid")).toBe(false);
+    expect(jobClosed("invoice_paid")).toBe(false);
+    expect(jobStageForStatus("requires_invoicing")).toBe("completed");
+  });
+
   it("detects obsolete Jobber emails{nodes} dead letters", () => {
     expect(
       isObsoleteJobberSchemaError("Field 'nodes' doesn't exist on type 'Email'")

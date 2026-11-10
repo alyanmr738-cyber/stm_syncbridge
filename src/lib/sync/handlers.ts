@@ -415,13 +415,19 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
   const supabase = getSupabaseAdmin();
 
   if (existing?.ghl_opportunity_id && env.JOB_COMPLETION_SYNC_ENABLED) {
-    assertPilotWrite("jobber.job_closed", {
-      jobberJobId: jobId,
-      ghlOpportunityId: existing.ghl_opportunity_id as string,
-    });
-    await moveOpportunityStage({
-      opportunityId: existing.ghl_opportunity_id as string,
-      stageId: STM_GHL.jobCompletedStageId,
+    if (!jobClosed(String(existing.last_job_status ?? ""))) {
+      assertPilotWrite("jobber.job_closed", {
+        jobberJobId: jobId,
+        ghlOpportunityId: existing.ghl_opportunity_id as string,
+      });
+      await moveOpportunityStage({
+        opportunityId: existing.ghl_opportunity_id as string,
+        stageId: STM_GHL.jobCompletedStageId,
+      });
+    }
+    await upsertJobLink({
+      jobber_job_id: jobId,
+      last_job_status: live?.jobStatus ?? reportedStatus ?? "closed",
     });
   } else if (!existing?.ghl_opportunity_id && env.JOB_COMPLETION_SYNC_ENABLED) {
     const clRes = supabase

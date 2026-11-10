@@ -160,6 +160,42 @@ describe("end-to-end payloads with Gate A", () => {
     expect(writes.some((w) => w.fn === "moveOpportunityStage")).toBe(false);
   });
 
+  it("JOB_CLOSED with live requires_invoicing moves the existing opportunity once", async () => {
+    const { fetchJobberJob } = await import("@/lib/jobber/ops");
+    const { findJobLink } = await import("@/lib/sync/match-store");
+    vi.mocked(fetchJobberJob).mockResolvedValue({
+      id: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      jobStatus: "requires_invoicing",
+      client: { id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" },
+    });
+    vi.mocked(findJobLink)
+      .mockResolvedValueOnce({
+        id: "jl",
+        ghl_opportunity_id: "opp-live",
+        last_job_status: "today",
+      })
+      .mockResolvedValueOnce({
+        id: "jl",
+        ghl_opportunity_id: "opp-live",
+        last_job_status: "requires_invoicing",
+      });
+    const event = {
+      syncEventId: "00000000-0000-0000-0000-000000000030",
+      eventKind: "JOB_CLOSED" as const,
+      source: "jobber" as const,
+      providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+    };
+    await processSyncEvent(event);
+    await processSyncEvent({ ...event, syncEventId: "00000000-0000-0000-0000-000000000031" });
+    const moves = writes.filter((w) => w.fn === "moveOpportunityStage");
+    expect(moves).toHaveLength(1);
+    expect(moves[0]?.args).toEqual({
+      opportunityId: "opp-live",
+      stageId: STM_GHL.jobCompletedStageId,
+    });
+    expect(writes.filter((w) => w.fn === "createOpportunity")).toHaveLength(0);
+  });
+
   it("JOB_CLOSED moves to Job Completed and does not send reviews when Gate C is off", async () => {
     const { findJobLink } = await import("@/lib/sync/match-store");
     vi.mocked(findJobLink).mockResolvedValueOnce({

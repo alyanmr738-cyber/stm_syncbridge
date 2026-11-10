@@ -70,8 +70,23 @@ export function quoteInvoiceNoteBody(kind: "quote" | "invoice", opts: {
   return `[SyncBridge ${kind} ${opts.number ?? opts.id}] status=${opts.status ?? "unknown"}`;
 }
 
+/** Jobber jobStatus tokens. Underscores/spaces/hyphens collapse; case-insensitive. */
+export function normalizeJobStatus(status?: string | null): string {
+  return (status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+/**
+ * Service work is finished. Includes Jobber's post-close `requires_invoicing`.
+ * Does not treat invoice paid/overdue as job completion.
+ */
 export function jobClosed(status?: string | null): boolean {
-  return /\b(closed?|complete[d]?|done)\b/i.test(status ?? "");
+  const s = normalizeJobStatus(status);
+  if (!s) return false;
+  if (s === "requires_invoicing") return true;
+  return /^(closed?|complete[d]?|done)$/.test(s);
 }
 
 export function jobCancelled(status?: string | null): boolean {
