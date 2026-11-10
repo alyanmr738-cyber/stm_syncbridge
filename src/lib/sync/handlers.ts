@@ -1,6 +1,6 @@
 import { getEnv } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
-import { assertPilotWrite, existingRecordsOnly } from "@/lib/config/pilot";
+import { assertPilotWrite } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import {
   addGhlContactNote,
@@ -162,12 +162,6 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
 }
 
 export async function syncGhlContact(event: LoadedEvent): Promise<void> {
-  if (existingRecordsOnly()) {
-    throw new GateClosedError(
-      "production_writes",
-      "ghl.contact.identity_write_blocked_in_restricted_pilot"
-    );
-  }
   const payload = event.payload;
   const ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
   if (!ghlId || ghlId === "unknown") return;

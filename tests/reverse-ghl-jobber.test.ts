@@ -26,7 +26,7 @@ vi.mock("@/lib/ghl/rest", () => ({
   upsertGhlContact: vi.fn(),
 }));
 
-describe("reverse GHL→Jobber is blocked in restricted pilot", () => {
+describe("reverse GHL→Jobber does not create Jobber clients in restricted pilot", () => {
   const prev = { ...process.env };
   beforeEach(() => {
     process.env = {
