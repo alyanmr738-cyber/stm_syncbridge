@@ -1,0 +1,26 @@
+Entity,Field,Authoritative Source,Flow,Jobber side,GHL side,Verification required,Policy
+Customer,first_name,Jobber,Jobber→GHL; GHL request→Jobber,Jobber client firstName,GHL contact firstName,Jobber API scope + mutation,Do not overwrite verified Jobber value with blank
+Customer,last_name,Jobber,Jobber→GHL; GHL request→Jobber,Jobber client lastName,GHL contact lastName,Jobber API scope + mutation,Accept person/company account distinction
+Customer,company_name,Jobber,Jobber→GHL; GHL request→Jobber,Jobber client companyName,GHL contact companyName,Account schema + field,No blind overwrite
+Customer,primary_email,Jobber,Jobber→GHL; GHL request→Jobber,Jobber client emails / primary,GHL contact email,"Email formatting, multiple emails",Normalize lower; preserve additional emails
+Customer,primary_phone,Jobber,Jobber→GHL; GHL request→Jobber,Jobber client phones / primary,GHL contact phone,"Phone scope, country",E164 normalization; do not match solely by shared number
+Customer,billing_address,Jobber,Jobber→GHL,Jobber client billingAddress,GHL custom field(s),Existing GHL fields,Do not substitute service property
+Property,service_address,Jobber,Jobber→GHL,Jobber Property.address,GHL service address custom fields,Actual Jobber property mutation,Multiple properties per client
+Property,property_id,Jobber,Internal mapping,Jobber Property.id,GHL custom field if available,Custom field feasibility,Opaque provider ID
+Customer,contact_consent,GHL + Jobber consent restrictions,Eligibility only,Jobber communication preferences,GHL DND/preferences,Provider consent fields,Honor most restrictive suppression
+Lead,lead_source,GHL,GHL only,Not authoritative,GHL contact source,GHL source field,Attribution website LSA Meta GMB
+Booking,requested_start,GHL request,GHL→Jobber request,Jobber Visit.startAt,GHL appointment startTime,Scheduling schema,Never final until Jobber confirmation
+Booking,confirmed_start,Jobber,Jobber→GHL,Jobber Visit.startAt,GHL appointment startTime,Jobber availability,Actual timezone & assignment
+Booking,confirmed_end,Jobber,Jobber→GHL,Jobber Visit.endAt,GHL appointment endTime,Duration semantics,Not equivalent to job completion
+Booking,technician_assignment,Jobber,Jobber→GHL read-only,Jobber Visit.assignedUsers,GHL appointment note/custom field,Team scopes,May have several techs
+Booking,service_type,Jobber catalog,GHL request→Jobber normalized,ProductOrService / Job line items,GHL service custom field,Service ID catalog,Exact mapping required
+Booking,jobber_job_id,Jobber,Internal mapping,Jobber Job.id,GHL opportunity custom field if available,GHL custom field,Per-job link
+Booking,jobber_visit_id,Jobber,Internal mapping,Jobber Visit.id,GHL appointment custom field if available,Calendar custom field,Reschedules update mapped visit
+Job,job_status,Jobber,Jobber→GHL,Job.jobStatus + completedAt,GHL opportunity stage,Verify completion semantics,No review for visit only
+Job,job_notes,Jobber,Jobber→GHL read-only,Job.notes,GHL custom field or notes,Read permissions,Do not overwrite
+Quote,quote_status,Jobber,Jobber→GHL,Quote.quoteStatus,GHL estimate status field/workflow,Webhook/listener,Reminder 1d 7d 1mo if unresolved
+Invoice,invoice_status,Jobber,Jobber→GHL,Invoice status field confirmed in schema,GHL invoice status field/workflow,Account-specific schema,Never create invoice from GHL
+Invoice,invoice_amount,Jobber,Jobber→GHL read-only,Invoice amounts,GHL reporting field optional,Currency + tax,No financial writes
+AI,summary_text,GHL,GHL→Jobber notes,Jobber Client/Job note mutation,GHL Voice AI/SMS summary,Verify note append mutation,Full conversation stays in GHL
+AI,summary_source_id,GHL,Internal dedup ledger,Provider note link,GHL call/conversation ID,Provider event fields,Avoid repeated notes
+Review,per_job_review_key,Integration,Integration→GHL workflow,Job.id/completedAt,GHL workflow entry,Inbound trigger feasibility,At most one authorization per Jobber job

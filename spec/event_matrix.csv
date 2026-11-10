@@ -1,0 +1,14 @@
+Source,Candidate Topic / Event (verify names),Meaning,Action,Priority,Needs API confirmation
+GHL,appointment.create,New booking request,"Check mapping, client/property, availability, create job/visit, confirm only after Jobber",Critical,YES
+GHL,appointment.update,Reschedule,"Update mapped Jobber visit, reuse Jobber job",Critical,YES
+GHL,appointment.cancel,Cancellation,Verify Jobber visit cancellation semantics,Critical,YES
+Jobber,client.create/update,Client changed,Refresh Jobber master; upsert GHL contact if safe,Critical,YES
+Jobber,property.create/update,Service property changed,Refresh property; update GHL service address,High,YES
+Jobber,job.create/update/completed,Job changed/completed,Refresh job; if completed per-job GHL stage+review ledger,Critical,YES
+Jobber,visit.create/update,Schedule changed,Refresh visit; update linked GHL appointment,Critical,YES
+Jobber,quote.create/update/sent,Quote lifecycle,Update GHL estimate status; followups only if eligible,High,YES
+Jobber,invoice.create/update/paid,Invoice lifecycle,Update GHL invoice status and eligibility,High,YES
+GHL,conversation.summary.ready,AI summary,Verify matching Jobber note owner; append once,High,YES
+Jobber,app_disconnect,OAuth revoked,"Stop integration, alert admin, reconnect required",Critical,YES
+Integration,backfill.batch,Historical records,"Map/link without workflows, customer texts or invoice writes",Critical,NO (initially)
+Integration,reconcile,Scheduled audit,Compare state/fingerprints; resolve under ownership rules,Critical,NO during audit
