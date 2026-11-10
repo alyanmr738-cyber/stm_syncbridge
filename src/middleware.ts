@@ -3,7 +3,13 @@ import type { NextRequest } from "next/server";
 import { getIronSession } from "iron-session";
 import type { AdminSession } from "@/lib/auth/session";
 
-const publicPaths = ["/login", "/api/webhooks", "/api/health", "/api/auth"];
+const publicPaths = [
+  "/login",
+  "/api/webhooks",
+  "/api/health",
+  "/api/auth",
+  "/api/oauth",
+];
 
 function isPublic(pathname: string): boolean {
   return publicPaths.some(
