@@ -5,7 +5,7 @@ import {
   canWriteToProviders,
   isPilotEntity,
 } from "@/lib/config/feature-flags";
-import { pilotAllows } from "@/lib/config/pilot";
+import { existingRecordsOnly, pilotAllows } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import { isJobberEncodedId } from "@/lib/jobber/ops";
 import { processSyncEvent } from "@/lib/sync/engine";
@@ -78,11 +78,15 @@ describe("typed pilot scope", () => {
     process.env.SYNC_ENABLED = "true";
     process.env.OUTBOUND_WRITES_ENABLED = "true";
     process.env.ALLOW_RECORD_CREATION = "";
-    process.env.PILOT_EXISTING_RECORDS_ONLY = "true";
+    process.env.PILOT_EXISTING_RECORDS_ONLY = "false";
     resetEnvCacheForTests();
     expect(canWriteToProviders()).toBe(true);
+    expect(existingRecordsOnly()).toBe(true);
     expect(
       pilotAllows({ jobberClientId: "jb-client-1", creatingGhlContact: true })
+    ).toBe(false);
+    expect(
+      pilotAllows({ jobberJobId: "jb-job-1", creatingGhlOpportunity: true })
     ).toBe(false);
     expect(
       pilotAllows({

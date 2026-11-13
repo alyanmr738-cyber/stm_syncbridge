@@ -7,11 +7,31 @@ import { buildPilotGhlContactBody } from "@/lib/config/pilot";
 const writes: { fn: string; args: unknown }[] = [];
 
 vi.mock("@/lib/db/supabase-admin", () => ({
-  getSupabaseAdmin: () => null,
+  getSupabaseAdmin: () => {
+    const eq = () => ({
+      maybeSingle: async () => ({
+        data: {
+          ghl_contact_id: "ghl-1",
+          jobber_client_id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x",
+          last_jobber_revision: null,
+          verified: true,
+        },
+      }),
+      eq,
+    });
+    return {
+      from: () => ({
+        select: () => ({ eq }),
+        upsert: async () => ({ data: null }),
+        insert: async () => ({ data: null }),
+        update: () => ({ eq }),
+      }),
+    };
+  },
 }));
 
 vi.mock("@/lib/sync/match-store", () => ({
-  matchCustomer: vi.fn(async () => ({ kind: "provider", ghlContactId: "ghl-1" })),
+  matchCustomer: vi.fn(async () => ({ kind: "linked", customerLinkId: "link-1" })),
   findJobLink: vi.fn(async () => null),
   upsertCustomerLink: vi.fn(async () => "link-1"),
   upsertJobLink: vi.fn(async () => "job-link-1"),
@@ -303,8 +323,8 @@ describe("end-to-end payloads with Gate A", () => {
     const { matchCustomer } = await import("@/lib/sync/match-store");
     const { editJobberClient, fetchJobberClient } = await import("@/lib/jobber/ops");
     vi.mocked(matchCustomer).mockResolvedValueOnce({
-      kind: "provider",
-      jobberClientId: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x",
+      kind: "linked",
+      customerLinkId: "link-1",
     });
     await processSyncEvent({
       syncEventId: "00000000-0000-0000-0000-000000000026",

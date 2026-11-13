@@ -112,12 +112,12 @@ export function assertPilotWrite(operation: string, opts: Parameters<typeof pilo
   throw new GateClosedError("production_writes", operation);
 }
 
-/** Default: never create contacts/jobs/opps. Gate A does not lift this. */
+/**
+ * Default: never create contacts/jobs/opps.
+ * Gate A does not lift this. Only explicit ALLOW_RECORD_CREATION=true does.
+ */
 export function existingRecordsOnly(): boolean {
-  const env = getEnv();
-  if (env.ALLOW_RECORD_CREATION === "true") return false;
-  if (env.PILOT_EXISTING_RECORDS_ONLY === "false" && canWriteToProviders()) return false;
-  return true;
+  return getEnv().ALLOW_RECORD_CREATION !== "true";
 }
 
 export type PilotGhlField =

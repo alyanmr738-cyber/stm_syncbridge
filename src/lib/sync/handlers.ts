@@ -13,7 +13,6 @@ import {
   upsertGhlContact,
 } from "@/lib/ghl/rest";
 import {
-  createJobberClient,
   createJobberNote,
   editJobberClient,
   fetchJobberClient,
@@ -79,16 +78,18 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
   let ghlId: string | undefined;
   const supabase = getSupabaseAdmin();
   let priorRevision: string | null = null;
+  let verified = false;
   if (decision.kind === "linked") {
     const linked = supabase
       ? await supabase
           .from("customer_links")
-          .select("ghl_contact_id, last_jobber_revision")
+          .select("ghl_contact_id, last_jobber_revision, verified")
           .eq("id", decision.customerLinkId)
           .maybeSingle()
       : { data: null };
     ghlId = linked.data?.ghl_contact_id ?? undefined;
     priorRevision = (linked.data?.last_jobber_revision as string | null) ?? null;
+    verified = linked.data?.verified === true;
   }
 
   if (decision.kind === "provider" && decision.ghlContactId) {
@@ -113,10 +114,35 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     }
   }
 
+  if (!ghlId) {
+    await openConflict({
+      eventId: event.id,
+      entityType: "customer",
+      entityId: client.id,
+      reason: "no_existing_ghl_contact",
+    });
+    return;
+  }
+  if (!verified) {
+    await upsertCustomerLink({
+      jobber_client_id: client.id,
+      ghl_contact_id: ghlId,
+      match_method: "pending_verification",
+      verified: false,
+    });
+    await openConflict({
+      eventId: event.id,
+      entityType: "customer",
+      entityId: client.id,
+      reason: "unverified_customer_identity",
+      details: { ghlContactId: ghlId },
+    });
+    return;
+  }
+
   assertPilotWrite(`jobber.client:${event.eventKind}`, {
     jobberClientId: client.id,
     ghlContactId: ghlId,
-    creatingGhlContact: !ghlId,
   });
   const mapped = jobberClientToGhlPayload(client);
   const revision = JSON.stringify({ email, phone, name: client.name });
@@ -184,6 +210,19 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
   }
 
   let jobberId: string | undefined;
+  let verified = false;
+  if (decision.kind === "linked") {
+    const supabase = getSupabaseAdmin();
+    const linked = supabase
+      ? await supabase
+          .from("customer_links")
+          .select("jobber_client_id, verified")
+          .eq("id", decision.customerLinkId)
+          .maybeSingle()
+      : { data: null };
+    jobberId = linked.data?.jobber_client_id ?? undefined;
+    verified = linked.data?.verified === true;
+  }
   if (decision.kind === "provider" && decision.jobberClientId) {
     jobberId = decision.jobberClientId;
   }
@@ -205,59 +244,57 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       return;
     }
   }
-  if (decision.kind === "linked") {
-    const supabase = getSupabaseAdmin();
-    const linked = supabase
-      ? await supabase
-          .from("customer_links")
-          .select("jobber_client_id")
-          .eq("id", decision.customerLinkId)
-          .maybeSingle()
-      : { data: null };
-    jobberId = linked.data?.jobber_client_id ?? undefined;
+
+  if (!jobberId) {
+    await openConflict({
+      eventId: event.id,
+      entityType: "customer",
+      entityId: ghlId,
+      reason: "no_existing_jobber_client",
+    });
+    return;
+  }
+  if (!verified) {
+    await upsertCustomerLink({
+      jobber_client_id: jobberId,
+      ghl_contact_id: ghlId,
+      match_method: "pending_verification",
+      verified: false,
+    });
+    await openConflict({
+      eventId: event.id,
+      entityType: "customer",
+      entityId: ghlId,
+      reason: "unverified_customer_identity",
+      details: { jobberClientId: jobberId },
+    });
+    return;
   }
 
   assertPilotWrite(`ghl.contact:${event.eventKind}`, {
     ghlContactId: ghlId,
     jobberClientId: jobberId,
-    creatingJobberClient: !jobberId,
   });
-  if (jobberId) {
-    await editJobberClient({
-      id: jobberId,
-      firstName: firstName || undefined,
-      lastName: lastName || undefined,
-      email: email ?? undefined,
-      phone: phone ?? undefined,
-    });
-    const authoritative = await fetchJobberClient(jobberId);
-    const aEmail = emailsFromClient(authoritative)?.[0];
-    await upsertGhlContact({
-      id: ghlId,
-      firstName: authoritative?.firstName ?? undefined,
-      lastName: authoritative?.lastName ?? undefined,
-      email: aEmail,
-      phone: normalizePhone(authoritative?.phones?.[0]?.number) ?? undefined,
-    });
-    await upsertCustomerLink({
-      jobber_client_id: jobberId,
-      ghl_contact_id: ghlId,
-      match_method: "ghl_edit_then_jobber_authoritative",
-      verified: true,
-    });
-    return;
-  }
-
-  const created = await createJobberClient({
+  await editJobberClient({
+    id: jobberId,
     firstName: firstName || undefined,
     lastName: lastName || undefined,
     email: email ?? undefined,
     phone: phone ?? undefined,
   });
+  const authoritative = await fetchJobberClient(jobberId);
+  const aEmail = emailsFromClient(authoritative)?.[0];
+  await upsertGhlContact({
+    id: ghlId,
+    firstName: authoritative?.firstName ?? undefined,
+    lastName: authoritative?.lastName ?? undefined,
+    email: aEmail,
+    phone: normalizePhone(authoritative?.phones?.[0]?.number) ?? undefined,
+  });
   await upsertCustomerLink({
-    jobber_client_id: created,
+    jobber_client_id: jobberId,
     ghl_contact_id: ghlId,
-    match_method: "ghl_create_jobber_client",
+    match_method: "ghl_edit_then_jobber_authoritative",
     verified: true,
   });
 }
@@ -332,11 +369,21 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
     const { data } = supabase
       ? await supabase
           .from("customer_links")
-          .select("ghl_contact_id")
+          .select("ghl_contact_id, verified")
           .eq("jobber_client_id", job.client.id)
           .maybeSingle()
       : { data: null };
-    ghlContactId = data?.ghl_contact_id ?? undefined;
+    if (data?.verified === true) {
+      ghlContactId = data.ghl_contact_id ?? undefined;
+    } else if (data?.ghl_contact_id) {
+      await openConflict({
+        eventId: event.id,
+        entityType: "job",
+        entityId: job.id,
+        reason: "unverified_customer_identity",
+        details: { jobberClientId: job.client.id },
+      });
+    }
   }
 
   const stageId = jobClosed(job.jobStatus)

@@ -95,6 +95,7 @@ export function featureFlagsSnapshot() {
     aiSummarySync: env.AI_SUMMARY_SYNC_ENABLED === true,
     reviewTrigger: env.REVIEW_TRIGGER_ENABLED === true,
     emergencyAutoBook: env.EMERGENCY_AUTO_BOOK_ENABLED === true,
+    allowRecordCreation: env.ALLOW_RECORD_CREATION === "true",
     gates: gateStatus(),
   };
 }
