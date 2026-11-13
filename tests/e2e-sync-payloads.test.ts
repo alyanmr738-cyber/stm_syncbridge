@@ -62,6 +62,11 @@ vi.mock("@/lib/ghl/rest", () => ({
     return { id: input.id ?? "ghl-new" };
   }),
   searchGhlOpportunities: vi.fn(async () => []),
+  getGhlOpportunity: vi.fn(async () => ({
+    id: "opp-live",
+    pipelineId: STM_GHL.salesPipelineId,
+    pipelineStageId: "4700f2a0-9ecb-4e9c-8698-d9f539e6b5de",
+  })),
   createOpportunity: vi.fn(async (input: Record<string, unknown>) => {
     writes.push({ fn: "createOpportunity", args: input });
     return { id: "opp-1" };
@@ -160,6 +165,45 @@ describe("end-to-end payloads with Gate A", () => {
     expect(writes.some((w) => w.fn === "moveOpportunityStage")).toBe(false);
   });
 
+  it("JOB_CLOSED reconciles when last_job_status is already requires_invoicing but GHL is not Job Completed", async () => {
+    const { fetchJobberJob } = await import("@/lib/jobber/ops");
+    const { findJobLink } = await import("@/lib/sync/match-store");
+    const { getGhlOpportunity } = await import("@/lib/ghl/rest");
+    vi.mocked(fetchJobberJob).mockResolvedValue({
+      id: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+      jobStatus: "requires_invoicing",
+      client: { id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" },
+    });
+    vi.mocked(findJobLink).mockResolvedValue({
+      id: "jl",
+      ghl_opportunity_id: "opp-live",
+      last_job_status: "requires_invoicing",
+    });
+    vi.mocked(getGhlOpportunity)
+      .mockResolvedValueOnce({
+        id: "opp-live",
+        pipelineStageId: "4700f2a0-9ecb-4e9c-8698-d9f539e6b5de",
+      })
+      .mockResolvedValueOnce({
+        id: "opp-live",
+        pipelineStageId: STM_GHL.jobCompletedStageId,
+      });
+    const event = {
+      syncEventId: "00000000-0000-0000-0000-000000000032",
+      eventKind: "JOB_CLOSED" as const,
+      source: "jobber" as const,
+      providerEntityId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+    };
+    await processSyncEvent(event);
+    await processSyncEvent({ ...event, syncEventId: "00000000-0000-0000-0000-000000000033" });
+    const moves = writes.filter((w) => w.fn === "moveOpportunityStage");
+    expect(moves).toHaveLength(1);
+    expect(moves[0]?.args).toEqual({
+      opportunityId: "opp-live",
+      stageId: STM_GHL.jobCompletedStageId,
+    });
+  });
+
   it("JOB_CLOSED with live requires_invoicing moves the existing opportunity once", async () => {
     const { fetchJobberJob } = await import("@/lib/jobber/ops");
     const { findJobLink } = await import("@/lib/sync/match-store");
@@ -168,6 +212,7 @@ describe("end-to-end payloads with Gate A", () => {
       jobStatus: "requires_invoicing",
       client: { id: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" },
     });
+    const { getGhlOpportunity } = await import("@/lib/ghl/rest");
     vi.mocked(findJobLink)
       .mockResolvedValueOnce({
         id: "jl",
@@ -178,6 +223,15 @@ describe("end-to-end payloads with Gate A", () => {
         id: "jl",
         ghl_opportunity_id: "opp-live",
         last_job_status: "requires_invoicing",
+      });
+    vi.mocked(getGhlOpportunity)
+      .mockResolvedValueOnce({
+        id: "opp-live",
+        pipelineStageId: "4700f2a0-9ecb-4e9c-8698-d9f539e6b5de",
+      })
+      .mockResolvedValueOnce({
+        id: "opp-live",
+        pipelineStageId: STM_GHL.jobCompletedStageId,
       });
     const event = {
       syncEventId: "00000000-0000-0000-0000-000000000030",

@@ -76,6 +76,11 @@ export async function getGhlContact(id: string): Promise<GhlContact | null> {
   }
 }
 
+export async function getGhlOpportunity(id: string): Promise<GhlOpportunity | null> {
+  const json = await ghlGetOptional<{ opportunity?: GhlOpportunity }>(`/opportunities/${id}`);
+  return json?.opportunity ?? (json as GhlOpportunity | null);
+}
+
 async function ghlGetOptional<T>(path: string): Promise<T | null> {
   const res = await fetch(`https://services.leadconnectorhq.com${path}`, {
     headers: headers(),
@@ -148,8 +153,8 @@ export async function moveOpportunityStage(opts: {
   opportunityId: string;
   pipelineId?: string;
   stageId: string;
-}): Promise<void> {
-  await ghlWrite("PUT", `/opportunities/${opts.opportunityId}`, {
+}): Promise<unknown> {
+  return ghlWrite("PUT", `/opportunities/${opts.opportunityId}`, {
     pipelineId: opts.pipelineId ?? STM_GHL.salesPipelineId,
     pipelineStageId: opts.stageId,
   });

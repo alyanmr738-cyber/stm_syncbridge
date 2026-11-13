@@ -117,6 +117,55 @@ describe("Jobber encoded ids", () => {
   });
 });
 
+describe("Evan Test completion pilot with Gate A off", () => {
+  const prev = { ...process.env };
+  const jobId = "Z2lkOi8vSm9iYmVyL0pvYi8xNjI3MjQ2NDI=";
+  const oppId = "WzfYXayDHWd48HFEQYR9";
+  beforeEach(() => {
+    process.env = {
+      ...prev,
+      SYNC_ENABLED: "false",
+      OUTBOUND_WRITES_ENABLED: "false",
+      CUSTOMER_MESSAGING_ENABLED: "false",
+      ALLOW_RECORD_CREATION: "",
+      PILOT_EXISTING_RECORDS_ONLY: "true",
+      PILOT_JOBBER_JOB_IDS: jobId,
+      PILOT_GHL_OPPORTUNITY_IDS: oppId,
+      PILOT_ENTITY_IDS: "",
+      PILOT_JOBBER_CLIENT_IDS: "",
+      PILOT_GHL_CONTACT_IDS: "",
+    };
+    resetEnvCacheForTests();
+  });
+  afterEach(() => {
+    process.env = prev;
+    resetEnvCacheForTests();
+  });
+
+  it("allows only the named job/opportunity stage write", () => {
+    expect(canWriteToProviders()).toBe(false);
+    expect(
+      pilotAllows({ jobberJobId: jobId, ghlOpportunityId: oppId })
+    ).toBe(true);
+    expect(
+      pilotAllows({ jobberJobId: jobId, ghlOpportunityId: "other-opp" })
+    ).toBe(false);
+    expect(
+      pilotAllows({
+        jobberJobId: "Z2lkOi8vSm9iYmVyL0pvYi8xNjI3MTYxMTE=",
+        ghlOpportunityId: oppId,
+      })
+    ).toBe(false);
+    expect(
+      pilotAllows({
+        jobberJobId: jobId,
+        ghlContactId: "Oz6ZOxZUXGs48oAqKxE2",
+        creatingGhlOpportunity: true,
+      })
+    ).toBe(false);
+  });
+});
+
 describe("STM mapping", () => {
   it("uses Septic Tank Man ids not Arizona Sign Company", () => {
     expect(STM_GHL.locationId).toBe("p7HYMD0h2RScLKL68uj0");

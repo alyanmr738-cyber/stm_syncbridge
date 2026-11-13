@@ -30,6 +30,7 @@ vi.mock("@/lib/ghl/rest", () => ({
     throw new Error("upsert should not run when gated");
   }),
   searchGhlOpportunities: vi.fn(async () => []),
+  getGhlOpportunity: vi.fn(async () => null),
   createOpportunity: vi.fn(),
   moveOpportunityStage: vi.fn(),
   addGhlContactNote: vi.fn(),

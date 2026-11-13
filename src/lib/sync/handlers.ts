@@ -6,6 +6,7 @@ import {
   addGhlContactNote,
   createOpportunity,
   getGhlContact,
+  getGhlOpportunity,
   moveOpportunityStage,
   searchGhlContacts,
   searchGhlOpportunities,
@@ -415,15 +416,31 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
   const supabase = getSupabaseAdmin();
 
   if (existing?.ghl_opportunity_id && env.JOB_COMPLETION_SYNC_ENABLED) {
-    if (!jobClosed(String(existing.last_job_status ?? ""))) {
+    const opportunityId = existing.ghl_opportunity_id as string;
+    const liveOpp = await getGhlOpportunity(opportunityId);
+    if (!liveOpp?.pipelineStageId) {
+      throw new Error("job_closed: GHL opportunity read failed");
+    }
+    const alreadyCompleted = liveOpp.pipelineStageId === STM_GHL.jobCompletedStageId;
+    if (!alreadyCompleted) {
       assertPilotWrite("jobber.job_closed", {
         jobberJobId: jobId,
-        ghlOpportunityId: existing.ghl_opportunity_id as string,
+        ghlOpportunityId: opportunityId,
       });
-      await moveOpportunityStage({
-        opportunityId: existing.ghl_opportunity_id as string,
+      const ghlPut = await moveOpportunityStage({
+        opportunityId,
         stageId: STM_GHL.jobCompletedStageId,
       });
+      console.info(
+        JSON.stringify({
+          evt: "job_closed_ghl_put",
+          jobberJobId: jobId,
+          opportunityId,
+          fromStage: liveOpp.pipelineStageId,
+          toStage: STM_GHL.jobCompletedStageId,
+          ghlPut,
+        })
+      );
     }
     await upsertJobLink({
       jobber_job_id: jobId,
