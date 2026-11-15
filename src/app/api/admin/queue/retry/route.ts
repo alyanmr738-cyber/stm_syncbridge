@@ -7,17 +7,40 @@ export async function POST(request: Request) {
   if (!session.isLoggedIn) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const body = (await request.json().catch(() => ({}))) as { eventId?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    eventId?: string;
+    allowQuarantineReplay?: boolean;
+  };
   const eventId = body.eventId;
   if (!eventId) return Response.json({ error: "eventId required" }, { status: 400 });
+  const allowQuarantineReplay = body.allowQuarantineReplay === true;
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ error: "db unavailable" }, { status: 503 });
 
   const { data: current } = await supabase
     .from("sync_events")
-    .select("id, last_error_redacted")
+    .select("id, last_error_redacted, received_at, status")
     .eq("id", eventId)
     .maybeSingle();
+  const { isEventInOAuthRecoveryQuarantine } = await import(
+    "@/lib/jobber/recovery-quarantine"
+  );
+  if (
+    !allowQuarantineReplay &&
+    isEventInOAuthRecoveryQuarantine(
+      current?.received_at as string | undefined,
+      current?.status as string | undefined
+    )
+  ) {
+    return Response.json(
+      {
+        error: "quarantined",
+        message:
+          "Event is in OAuth outage quarantine — set allowQuarantineReplay after explicit catch-up approval",
+      },
+      { status: 409 }
+    );
+  }
   const { isObsoleteJobberSchemaError } = await import("@/lib/sync/matching");
   if (isObsoleteJobberSchemaError(current?.last_error_redacted as string | undefined)) {
     await supabase

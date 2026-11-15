@@ -1,5 +1,9 @@
 import { getEnv } from "@/lib/config/env";
-import { getValidJobberAccessToken, markJobberDisconnected } from "@/lib/jobber/tokens";
+import {
+  getValidJobberAccessToken,
+  markJobberDisconnected,
+  JobberAuthError,
+} from "@/lib/jobber/tokens";
 import { jobberGraphqlVersion } from "@/lib/jobber/version";
 
 const ENDPOINT = "https://api.getjobber.com/api/graphql";
@@ -26,8 +30,8 @@ export async function jobberGraphql<T>(
     body: JSON.stringify({ query, variables }),
   });
   if (res.status === 401) {
-    await markJobberDisconnected("http_401");
-    throw new Error("Jobber unauthorized — reconnect required");
+    await markJobberDisconnected("graphql_http_401");
+    throw new JobberAuthError("revoked", "Jobber unauthorized — reconnect required");
   }
   const json = (await res.json()) as GraphqlResult<T> & {
     data?: T & { userErrors?: { message: string }[] };

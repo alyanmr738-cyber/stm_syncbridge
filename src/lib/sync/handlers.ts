@@ -539,14 +539,16 @@ export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "in
   const env = getEnv();
   const supabase = getSupabaseAdmin();
   const id = event.providerEntityId ?? event.id;
+  const writeFlag = kind === "quote" ? env.ESTIMATE_SYNC_ENABLED : env.INVOICE_SYNC_ENABLED;
+  if (!writeFlag) {
+    throw new GateClosedError("production_writes", `jobber.${kind}.sync`);
+  }
   const live =
-    kind === "quote"
-      ? isJobberEncodedId(id)
+    writeFlag && isJobberEncodedId(id)
+      ? kind === "quote"
         ? await fetchJobberQuote(id)
-        : null
-      : isJobberEncodedId(id)
-        ? await fetchJobberInvoice(id)
-        : null;
+        : await fetchJobberInvoice(id)
+      : null;
   const status =
     (live && "quoteStatus" in live ? live.quoteStatus : undefined) ??
     (live && "invoiceStatus" in live ? live.invoiceStatus : undefined) ??
@@ -558,7 +560,6 @@ export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "in
   const col = kind === "quote" ? "jobber_quote_id" : "jobber_invoice_id";
 
   let ghlNoteId: string | null = null;
-  const writeFlag = kind === "quote" ? env.ESTIMATE_SYNC_ENABLED : env.INVOICE_SYNC_ENABLED;
   const clientId = live?.client?.id;
   const existingFinance = supabase
     ? await supabase

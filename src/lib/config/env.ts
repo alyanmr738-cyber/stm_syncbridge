@@ -52,6 +52,9 @@ const envSchema = z.object({
   ADMIN_EMAIL_ALLOWLIST: z.string().optional(),
   ADMIN_BOOTSTRAP_PASSWORD: z.string().optional(),
   USE_PROVIDER_MOCKS: booleanFlag,
+  OAUTH_RECOVERY_QUARANTINE_ENABLED: booleanFlag,
+  OAUTH_RECOVERY_QUARANTINE_SINCE: z.string().optional(),
+  JOBBER_AUTO_RELEASE_AUTH_BACKOFF: booleanFlag,
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

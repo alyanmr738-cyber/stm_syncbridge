@@ -1,5 +1,10 @@
 import type { EventQueue, EnqueueResult, QueueJobPayload } from "./types";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import { JobberAuthError } from "@/lib/jobber/auth-error";
+import {
+  OAuthRecoveryQuarantineError,
+  isEventInOAuthRecoveryQuarantine,
+} from "@/lib/jobber/recovery-quarantine";
 
 export class PostgresEventQueue implements EventQueue {
   async enqueue(
@@ -70,13 +75,35 @@ export class PostgresEventQueue implements EventQueue {
 
     const { data: event } = await supabase
       .from("sync_events")
-      .select("id, source, event_kind")
+      .select("id, source, event_kind, received_at, status")
       .eq("id", job.sync_event_id)
       .maybeSingle();
     if (!event) {
       await supabase
         .from("queue_jobs")
         .update({ status: "dead_letter", updated_at: now })
+        .eq("id", job.id);
+      return true;
+    }
+
+    if (
+      isEventInOAuthRecoveryQuarantine(
+        event.received_at as string,
+        event.status as string
+      )
+    ) {
+      await supabase
+        .from("sync_events")
+        .update({
+          status: "suppressed",
+          last_error_redacted:
+            "OAuth recovery quarantine — backlog requires separate catch-up approval",
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", event.id);
+      await supabase
+        .from("queue_jobs")
+        .update({ status: "completed", updated_at: new Date().toISOString() })
         .eq("id", job.id);
       return true;
     }
@@ -107,15 +134,41 @@ export class PostgresEventQueue implements EventQueue {
           .eq("id", event.id);
       }
     } catch (e) {
-      const attempt = (job.attempt ?? 0) + 1;
-      const dead = attempt >= (job.max_attempts ?? 8);
+      if (e instanceof OAuthRecoveryQuarantineError) {
+        await supabase
+          .from("sync_events")
+          .update({
+            status: "suppressed",
+            last_error_redacted: e.message.slice(0, 240),
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", event.id);
+        await supabase
+          .from("queue_jobs")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", job.id);
+        return true;
+      }
+      const revoked =
+        e instanceof JobberAuthError && e.kind === "revoked";
+      const transientAuth =
+        e instanceof JobberAuthError && e.kind === "transient";
+      const attempt = revoked ? job.attempt ?? 0 : (job.attempt ?? 0) + 1;
+      const dead = !revoked && attempt >= (job.max_attempts ?? 8);
+      const backoffMs = revoked
+        ? 30 * 60 * 1000
+        : transientAuth
+          ? Math.min(60_000 * 2 ** Math.max(attempt - 1, 0), 15 * 60 * 1000)
+          : 0;
+      const parkUntil =
+        backoffMs > 0 ? new Date(Date.now() + backoffMs).toISOString() : null;
       await supabase
         .from("queue_jobs")
         .update({
-          status: dead ? "dead_letter" : "pending",
+          status: dead ? "dead_letter" : backoffMs > 0 ? "leased" : "pending",
           attempt,
-          lease_owner: null,
-          leased_until: null,
+          lease_owner: backoffMs > 0 && !dead ? "auth_backoff" : null,
+          leased_until: dead ? null : parkUntil,
           updated_at: new Date().toISOString(),
         })
         .eq("id", job.id);

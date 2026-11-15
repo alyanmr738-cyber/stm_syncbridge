@@ -1,5 +1,9 @@
 import { GateClosedError } from "@/lib/config/feature-flags";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import {
+  OAuthRecoveryQuarantineError,
+  assertNotOAuthRecoveryQuarantine,
+} from "@/lib/jobber/recovery-quarantine";
 import type { QueueJobPayload } from "@/lib/queue/types";
 import {
   syncAiSummary,
@@ -17,11 +21,19 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
   const loaded = supabase
     ? await supabase
         .from("sync_events")
-        .select("id, source, event_kind, provider_entity_id, payload")
+        .select("id, source, event_kind, provider_entity_id, payload, received_at, status")
         .eq("id", payload.syncEventId)
         .maybeSingle()
     : { data: null };
   const row = loaded.data;
+
+  if (row?.received_at) {
+    assertNotOAuthRecoveryQuarantine(
+      row.received_at as string,
+      row.event_kind as string,
+      row.status as string
+    );
+  }
 
   const event: LoadedEvent = {
     id: payload.syncEventId,
@@ -74,6 +86,10 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<void> 
       await syncAiSummary(event);
     }
   } catch (e) {
+    if (e instanceof OAuthRecoveryQuarantineError) {
+      await markSuppressed(payload.syncEventId, e.message);
+      return;
+    }
     if (e instanceof GateClosedError) {
       await markSuppressed(payload.syncEventId, e.message);
       if (/APPOINTMENT|BOOKING/.test(kind) && event.source !== "jobber") {

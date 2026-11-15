@@ -2,6 +2,7 @@ import { getEnv } from "@/lib/config/env";
 import { getJobberPkceSession } from "@/lib/jobber/oauth-pkce-session";
 import { exchangeJobberAuthorizationCode, fetchJobberAccount } from "@/lib/jobber/oauth";
 import { upsertJobberConnection } from "@/lib/db/sync-connections";
+import { getEnv } from "@/lib/config/env";
 
 function redirect(path: string) {
   return Response.redirect(new URL(path, getEnv().APP_BASE_URL));
@@ -45,6 +46,10 @@ export async function GET(request: Request) {
         expires_at: expiresAt,
       },
     });
+    if (getEnv().JOBBER_AUTO_RELEASE_AUTH_BACKOFF === true) {
+      const { clearJobberAuthBackoffs } = await import("@/lib/jobber/tokens");
+      await clearJobberAuthBackoffs();
+    }
 
     pkce.state = undefined;
     pkce.codeVerifier = undefined;

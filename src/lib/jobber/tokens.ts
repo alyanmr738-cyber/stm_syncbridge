@@ -3,6 +3,12 @@ import { decryptJson, encryptJson } from "@/lib/crypto/token-encryption";
 import { parseStoredBytea, toByteaHex } from "@/lib/crypto/bytea";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import type { JobberStoredCredentials } from "@/lib/db/sync-connections";
+import {
+  JobberAuthError,
+  classifyJobberTokenHttp,
+  fingerprintToken,
+} from "@/lib/jobber/auth-error";
+import { getValidAccessToken, type TokenRow } from "@/lib/jobber/refresh-coordinator";
 
 const JOBBER_TOKEN = "https://api.getjobber.com/api/oauth/token";
 
@@ -13,6 +19,8 @@ type ConnRow = {
   encrypted_credentials: unknown;
   token_expires_at: string | null;
   status: string;
+  credential_generation?: number | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 async function loadJobberRow(): Promise<ConnRow> {
@@ -21,10 +29,10 @@ async function loadJobberRow(): Promise<ConnRow> {
   const { data, error } = await supabase
     .from("sync_connections")
     .select(
-      "id, provider_account_id, provider_account_name, encrypted_credentials, token_expires_at, status"
+      "id, provider_account_id, provider_account_name, encrypted_credentials, token_expires_at, status, metadata"
     )
     .eq("provider", "jobber")
-    .eq("status", "connected")
+    .in("status", ["connected", "reauthorization_required"])
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -32,63 +40,92 @@ async function loadJobberRow(): Promise<ConnRow> {
   return data as ConnRow;
 }
 
+function generationOf(row: ConnRow): number {
+  const meta = (row.metadata ?? {}) as { credential_generation?: number };
+  if (typeof row.credential_generation === "number") return row.credential_generation;
+  if (typeof meta.credential_generation === "number") return meta.credential_generation;
+  return 1;
+}
+
 function decodeCreds(row: ConnRow): JobberStoredCredentials {
   return decryptJson<JobberStoredCredentials>(parseStoredBytea(row.encrypted_credentials));
 }
 
-async function persistCreds(
+async function persistIfGeneration(
   row: ConnRow,
+  expectedGeneration: number,
   creds: JobberStoredCredentials
-): Promise<void> {
+): Promise<boolean> {
   const supabase = getSupabaseAdmin();
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
+  const nextGen = expectedGeneration + 1;
+  const metadata = {
+    ...((row.metadata ?? {}) as Record<string, unknown>),
+    credential_generation: nextGen,
+    refresh_fp: fingerprintToken(creds.refresh_token),
+    access_fp: fingerprintToken(creds.access_token),
+    rotated_at: new Date().toISOString(),
+  };
+  let q = supabase
     .from("sync_connections")
     .update({
       encrypted_credentials: toByteaHex(encryptJson(creds as unknown as Record<string, unknown>)),
       token_expires_at: creds.expires_at,
       last_verified_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      status: "connected",
+      metadata,
     })
-    .eq("id", row.id);
+    .eq("id", row.id)
+    .eq("status", "connected");
+  if (row.token_expires_at) {
+    q = q.eq("token_expires_at", row.token_expires_at);
+  }
+  const { data, error } = await q.select("id").maybeSingle();
   if (error) throw new Error(error.message);
+  return Boolean(data?.id);
 }
 
 async function acquireLock(accountId: string, owner: string): Promise<boolean> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return true;
-  const until = new Date(Date.now() + 20_000).toISOString();
-  const { data: existing } = await supabase
+  const rpc = await supabase.rpc("try_acquire_token_refresh_lock", {
+    p_provider: "jobber",
+    p_account: accountId,
+    p_owner: owner,
+    p_ttl_seconds: 25,
+  });
+  if (!rpc.error && typeof rpc.data === "boolean") return rpc.data;
+  const now = new Date().toISOString();
+  const until = new Date(Date.now() + 25_000).toISOString();
+  const { data: updated } = await supabase
     .from("token_refresh_locks")
-    .select("locked_until, owner")
+    .update({ locked_until: until, owner })
     .eq("provider", "jobber")
     .eq("provider_account_id", accountId)
+    .or(`locked_until.lt.${now},owner.eq.${owner}`)
+    .select("owner")
     .maybeSingle();
-  if (
-    existing &&
-    existing.locked_until &&
-    new Date(existing.locked_until).getTime() > Date.now() &&
-    existing.owner !== owner
-  ) {
-    return false;
-  }
-  const { error } = await supabase.from("token_refresh_locks").upsert({
+  if (updated?.owner === owner) return true;
+  const { error } = await supabase.from("token_refresh_locks").insert({
     provider: "jobber",
     provider_account_id: accountId,
     locked_until: until,
     owner,
   });
-  return !error;
+  if (!error) return true;
+  return false;
 }
 
-async function releaseLock(accountId: string): Promise<void> {
+async function releaseLock(accountId: string, owner: string): Promise<void> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return;
   await supabase
     .from("token_refresh_locks")
-    .delete()
+    .update({ locked_until: new Date(0).toISOString() })
     .eq("provider", "jobber")
-    .eq("provider_account_id", accountId);
+    .eq("provider_account_id", accountId)
+    .eq("owner", owner);
 }
 
 async function exchangeRefresh(refreshToken: string): Promise<JobberStoredCredentials> {
@@ -102,21 +139,41 @@ async function exchangeRefresh(refreshToken: string): Promise<JobberStoredCreden
     grant_type: "refresh_token",
     refresh_token: refreshToken,
   });
-  const res = await fetch(JOBBER_TOKEN, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Jobber refresh failed (${res.status}): ${text.slice(0, 160)}`);
+  let res: Response;
+  try {
+    res = await fetch(JOBBER_TOKEN, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+  } catch (e) {
+    throw new JobberAuthError(
+      "transient",
+      `Jobber refresh network error: ${e instanceof Error ? e.message : "fetch_failed"}`
+    );
   }
-  const json = (await res.json()) as {
+  const text = await res.text();
+  if (!res.ok) {
+    const kind = classifyJobberTokenHttp(res.status, text);
+    throw new JobberAuthError(
+      kind,
+      `Jobber refresh failed (${res.status}): ${text.slice(0, 160)}`
+    );
+  }
+  let json: {
     access_token: string;
-    refresh_token: string;
-    token_type: string;
+    refresh_token?: string;
+    token_type?: string;
     expires_in: number;
   };
+  try {
+    json = JSON.parse(text) as typeof json;
+  } catch {
+    throw new JobberAuthError("transient", `Jobber refresh non-json (${res.status})`);
+  }
+  if (!json.access_token) {
+    throw new JobberAuthError("transient", "Jobber refresh missing access_token");
+  }
   return {
     access_token: json.access_token,
     refresh_token: json.refresh_token ?? refreshToken,
@@ -125,54 +182,39 @@ async function exchangeRefresh(refreshToken: string): Promise<JobberStoredCreden
   };
 }
 
+function toTokenRow(row: ConnRow): TokenRow {
+  return {
+    generation: generationOf(row),
+    credentials: decodeCreds(row),
+    accountId: row.provider_account_id,
+    accountName: row.provider_account_name,
+  };
+}
+
 export async function getValidJobberAccessToken(): Promise<{
   accessToken: string;
   accountId: string;
   accountName: string | null;
 }> {
-  const row = await loadJobberRow();
-  const creds = decodeCreds(row);
-  const expires = creds.expires_at ? new Date(creds.expires_at).getTime() : 0;
-  const skewMs = 120_000;
-  if (expires - skewMs > Date.now()) {
-    return {
-      accessToken: creds.access_token,
-      accountId: row.provider_account_id,
-      accountName: row.provider_account_name,
-    };
+  const initial = await loadJobberRow();
+  if (initial.status === "reauthorization_required") {
+    throw new JobberAuthError("revoked", "Jobber reauthorization required");
   }
-
-  const owner = crypto.randomUUID();
-  let locked = await acquireLock(row.provider_account_id, owner);
-  if (!locked) {
-    await new Promise((r) => setTimeout(r, 1500));
-    const again = await loadJobberRow();
-    const refreshed = decodeCreds(again);
-    if (new Date(refreshed.expires_at).getTime() - skewMs > Date.now()) {
-      return {
-        accessToken: refreshed.access_token,
-        accountId: again.provider_account_id,
-        accountName: again.provider_account_name,
-      };
-    }
-    locked = await acquireLock(row.provider_account_id, owner);
-    if (!locked) {
-      throw new Error("Could not acquire Jobber refresh lock");
-    }
-  }
-
-  try {
-    const latest = decodeCreds(await loadJobberRow());
-    const next = await exchangeRefresh(latest.refresh_token);
-    await persistCreds(row, next);
-    return {
-      accessToken: next.access_token,
-      accountId: row.provider_account_id,
-      accountName: row.provider_account_name,
-    };
-  } finally {
-    await releaseLock(row.provider_account_id);
-  }
+  const accountId = initial.provider_account_id;
+  return getValidAccessToken({
+    load: async () => toTokenRow(await loadJobberRow()),
+    acquireLock: (owner) => acquireLock(accountId, owner),
+    releaseLock: (owner) => releaseLock(accountId, owner),
+    exchangeRefresh,
+    persistIfGeneration: async (expected, next) => {
+      const row = await loadJobberRow();
+      if (generationOf(row) !== expected) return false;
+      return persistIfGeneration(row, expected, next);
+    },
+    markRevoked: (reason) => markJobberDisconnected(reason),
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    now: () => Date.now(),
+  });
 }
 
 export async function markJobberDisconnected(reason: string): Promise<void> {
@@ -183,7 +225,24 @@ export async function markJobberDisconnected(reason: string): Promise<void> {
     .update({
       status: "reauthorization_required",
       last_verified_at: new Date().toISOString(),
-      metadata: { reason },
+      metadata: { reason: reason.slice(0, 180), auth: "revoked" },
     })
-    .eq("provider", "jobber");
+    .eq("provider", "jobber")
+    .eq("status", "connected");
 }
+
+export async function clearJobberAuthBackoffs(): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+  await supabase
+    .from("queue_jobs")
+    .update({
+      status: "pending",
+      lease_owner: null,
+      leased_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("lease_owner", "auth_backoff");
+}
+
+export { JobberAuthError };
