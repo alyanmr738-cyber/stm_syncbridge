@@ -2,7 +2,6 @@ import { getEnv } from "@/lib/config/env";
 import { getJobberPkceSession } from "@/lib/jobber/oauth-pkce-session";
 import { exchangeJobberAuthorizationCode, fetchJobberAccount } from "@/lib/jobber/oauth";
 import { upsertJobberConnection } from "@/lib/db/sync-connections";
-import { getEnv } from "@/lib/config/env";
 
 function redirect(path: string) {
   return Response.redirect(new URL(path, getEnv().APP_BASE_URL));
