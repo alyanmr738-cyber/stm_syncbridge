@@ -46,6 +46,7 @@ type Payload = {
 export default function MatchingPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [jobs, setJobs] = useState<Record<string, unknown> | null>(null);
+  const [jobReconcile, setJobReconcile] = useState<Record<string, unknown> | null>(null);
   const [msg, setMsg] = useState("");
 
   async function load() {
@@ -55,11 +56,32 @@ export default function MatchingPage() {
       .then((r) => r.json())
       .then((j) => setJobs(j))
       .catch(() => setJobs({ error: "candidates unavailable" }));
+    fetch("/api/admin/jobs/reconcile")
+      .then((r) => r.json())
+      .then((j) => setJobReconcile(j))
+      .catch(() => setJobReconcile({ error: "reconcile unavailable" }));
   }
 
   useEffect(() => {
     void load();
   }, []);
+
+  async function persistJobProposals(live: boolean) {
+    if (
+      !window.confirm(
+        "Store job relationship proposals in the database? This does NOT apply job_links mutations."
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/admin/jobs/reconcile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirm: true, persist: true, liveOpportunityScan: live }),
+    });
+    setMsg(JSON.stringify(await res.json()));
+    await load();
+  }
 
   async function refresh(persist: boolean) {
     if (
@@ -203,6 +225,27 @@ export default function MatchingPage() {
       </Panel>
       <Panel heading="Job ↔ opportunity candidates (read-only)">
         <pre className="overflow-auto text-[11px]">{JSON.stringify(jobs?.counts ?? jobs, null, 2)}</pre>
+      </Panel>
+      <Panel heading="Job relationship reconciliation (database proposals only)">
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-xs"
+            onClick={() => persistJobProposals(false)}
+          >
+            Persist proposals (labels only)
+          </button>
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-xs"
+            onClick={() => persistJobProposals(true)}
+          >
+            Persist with live GHL opportunity scan
+          </button>
+        </div>
+        <pre className="overflow-auto text-[11px]">
+          {JSON.stringify(jobReconcile?.counts ?? jobReconcile, null, 2)}
+        </pre>
       </Panel>
     </AdminShell>
   );
