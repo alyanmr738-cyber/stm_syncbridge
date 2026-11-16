@@ -1,43 +1,25 @@
 import { AdminShell, Panel } from "@/components/admin/shell";
-import { RetryButton } from "@/components/admin/retry-button";
+import { ActivityBoard } from "@/components/admin/activity-board";
+import { listLinks } from "@/lib/db/admin-lists";
+import { enrichCustomers, enrichEvents, enrichJobs } from "@/lib/display/enrich";
 import { listRecentEvents } from "@/services/events/inbox";
 
 export default async function ActivityPage() {
   const events = await listRecentEvents(80);
+  const { customers, jobs } = await listLinks();
+  const customerViews = await enrichCustomers(customers);
+  const jobViews = await enrichJobs(jobs, customerViews);
+  const rows = await enrichEvents(events, customerViews, jobViews);
   return (
-    <AdminShell title="Sync activity" subtitle="Durable Jobber and GHL events.">
+    <AdminShell
+      title="Sync activity"
+      subtitle="Durable Jobber and GHL events, labeled with people and jobs when known."
+    >
       <Panel>
-        {events.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="text-sm text-[#657683]">No events stored yet.</p>
         ) : (
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b text-[#657683]">
-                <th className="py-2">Kind</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Why / error</th>
-                <th>Received</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e) => (
-                <tr key={e.id} className="border-b border-[#eef1f3]">
-                  <td className="py-2 font-medium">{e.eventKind}</td>
-                  <td>{e.source}</td>
-                  <td>{e.status}</td>
-                  <td className="max-w-[220px] truncate text-[#657683]">{e.error ?? "—"}</td>
-                  <td>{e.receivedAt}</td>
-                  <td>
-                    {(e.status === "dead_letter" || e.status === "retrying") && (
-                      <RetryButton eventId={e.id} />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ActivityBoard rows={rows} />
         )}
       </Panel>
     </AdminShell>

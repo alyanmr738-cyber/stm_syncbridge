@@ -17,14 +17,18 @@ export async function listLinks() {
   if (!supabase) return { customers: [], jobs: [] };
   const { data: customers } = await supabase
     .from("customer_links")
-    .select("id, jobber_client_id, ghl_contact_id, verified, match_method, last_synced_at")
+    .select(
+      "id, jobber_client_id, ghl_contact_id, verified, match_method, last_jobber_revision, last_ghl_revision, last_synced_at"
+    )
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
   const { data: jobs } = await supabase
     .from("job_links")
-    .select("id, jobber_job_id, ghl_opportunity_id, last_job_status, last_synced_at")
+    .select(
+      "id, jobber_job_id, ghl_opportunity_id, last_job_status, last_synced_at, customer_link_id"
+    )
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
   return { customers: customers ?? [], jobs: jobs ?? [] };
 }
 
@@ -70,12 +74,12 @@ export async function listFinance() {
   if (!supabase) return { quotes: [], invoices: [] };
   const { data: quotes } = await supabase
     .from("quote_links")
-    .select("id, jobber_quote_id, last_status, ghl_reference, last_synced_at")
+    .select("id, jobber_quote_id, last_status, ghl_reference, last_synced_at, customer_link_id")
     .order("last_synced_at", { ascending: false })
     .limit(50);
   const { data: invoices } = await supabase
     .from("invoice_links")
-    .select("id, jobber_invoice_id, last_status, ghl_reference, last_synced_at")
+    .select("id, jobber_invoice_id, last_status, ghl_reference, last_synced_at, customer_link_id")
     .order("last_synced_at", { ascending: false })
     .limit(50);
   return { quotes: quotes ?? [], invoices: invoices ?? [] };

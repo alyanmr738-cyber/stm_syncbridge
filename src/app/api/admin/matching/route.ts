@@ -1,6 +1,9 @@
 import { getAdminSession } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
-import { canAcceptVerifiedLink } from "@/lib/sync/candidate-matcher";
+import { enrichCustomers } from "@/lib/display/enrich";
+import { hydrateLabels, labelOf } from "@/lib/display/entity-labels";
+import { displayName, maskEmail, maskPhone, namesDiffer } from "@/lib/display/format";
+import { canAcceptVerifiedLink, type CandidateBucket } from "@/lib/sync/candidate-matcher";
 
 export async function GET() {
   const session = await getAdminSession();
@@ -13,7 +16,7 @@ export async function GET() {
   const { data: customers } = await supabase
     .from("customer_links")
     .select(
-      "id, jobber_client_id, ghl_contact_id, verified, match_method, last_synced_at, created_at"
+      "id, jobber_client_id, ghl_contact_id, verified, match_method, last_jobber_revision, last_ghl_revision, last_synced_at, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(500);
@@ -32,9 +35,33 @@ export async function GET() {
     .limit(200);
 
   const rows = customers ?? [];
-  const verified = rows.filter((r) => r.verified);
-  const pending = rows.filter((r) => !r.verified);
+  const views = await enrichCustomers(rows);
+  const verified = views.filter((r) => r.verified);
+  const pending = views.filter((r) => !r.verified);
   const proposalRows = proposals ?? [];
+  const labels = await hydrateLabels(
+    proposalRows.flatMap((p) => {
+      const keys = [];
+      if (p.jobber_id) keys.push({ provider: "jobber" as const, entity_type: "client" as const, entity_id: String(p.jobber_id) });
+      if (p.ghl_id) keys.push({ provider: "ghl" as const, entity_type: "contact" as const, entity_id: String(p.ghl_id) });
+      return keys;
+    })
+  );
+  const proposalsView = proposalRows.map((p) => {
+    const j = labelOf(labels, "jobber", "client", p.jobber_id as string);
+    const g = labelOf(labels, "ghl", "contact", p.ghl_id as string);
+    const jobberName = displayName([j?.title], "Jobber customer (name unavailable)");
+    const ghlName = displayName([g?.title], "GHL contact (name unavailable)");
+    return {
+      ...p,
+      jobberName,
+      ghlName,
+      namesDiffer: namesDiffer(jobberName, ghlName),
+      maskedEmail: maskEmail((j?.extra.email as string) || (g?.extra.email as string)),
+      maskedPhone: maskPhone((j?.extra.phone as string) || (g?.extra.phone as string)),
+      canAccept: canAcceptVerifiedLink(p.bucket as CandidateBucket),
+    };
+  });
 
   return Response.json({
     counts: {
@@ -56,7 +83,7 @@ export async function GET() {
     },
     verified: verified.slice(0, 120),
     pending,
-    proposals: proposalRows,
+    proposals: proposalsView,
     conflicts: conflicts ?? [],
   });
 }

@@ -88,6 +88,7 @@ export async function listRecentEvents(limit = 50) {
     status: row.status as string,
     error: row.last_error_redacted as string | null,
     receivedAt: row.received_at as string,
+    providerEntityId: (row.provider_entity_id as string | null) ?? null,
   }));
 }
 

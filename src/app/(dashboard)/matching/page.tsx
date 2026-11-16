@@ -1,22 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AdminShell, Panel } from "@/components/admin/shell";
+import { IdDetails } from "@/components/admin/id-details";
+import { SearchableTable } from "@/components/admin/searchable-table";
+
+type CustomerView = {
+  id: string;
+  jobberClientId: string | null;
+  ghlContactId: string | null;
+  verified: boolean;
+  matchMethod: string;
+  jobberName: string;
+  ghlName: string;
+  namesDiffer: boolean;
+  maskedEmail: string | null;
+  maskedPhone: string | null;
+};
+
+type ProposalView = {
+  id: string;
+  bucket: string;
+  status: string;
+  jobber_id: string | null;
+  ghl_id: string | null;
+  reason: string | null;
+  jobberName: string;
+  ghlName: string;
+  namesDiffer: boolean;
+  maskedEmail: string | null;
+  maskedPhone: string | null;
+  canAccept: boolean;
+};
 
 type Payload = {
   counts: Record<string, number>;
   policy: Record<string, unknown>;
-  verified: { id: string; jobber_client_id: string; ghl_contact_id: string; match_method: string }[];
-  pending: { id: string; jobber_client_id: string; ghl_contact_id: string; match_method: string }[];
-  proposals: {
-    id: string;
-    bucket: string;
-    status: string;
-    jobber_id: string | null;
-    ghl_id: string | null;
-    reason: string | null;
-  }[];
-  conflicts: { id: string; reason: string; state: string }[];
+  verified: CustomerView[];
+  pending: CustomerView[];
+  proposals: ProposalView[];
+  conflicts: { id: string; reason: string; state: string; source_entity_id?: string }[];
 };
 
 export default function MatchingPage() {
@@ -57,7 +81,11 @@ export default function MatchingPage() {
   }
 
   async function decide(proposalId: string, action: "accept" | "reject") {
-    if (!window.confirm(`Confirm ${action} for proposal ${proposalId}? This never auto-links email-only or phone-only.`)) {
+    if (
+      !window.confirm(
+        `Confirm ${action}? Names matching is not enough. Email-only and phone-only cannot be verified here.`
+      )
+    ) {
       return;
     }
     const res = await fetch("/api/admin/matching/resolve", {
@@ -65,15 +93,14 @@ export default function MatchingPage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ proposalId, action, confirm: true }),
     });
-    const body = await res.json();
-    setMsg(JSON.stringify(body));
+    setMsg(JSON.stringify(await res.json()));
     await load();
   }
 
   return (
     <AdminShell
       title="Matching & conflict review"
-      subtitle="Candidates only. Email-only / phone-only never become verified from this screen. Batch B is not applied."
+      subtitle="Review names and evidence. Accept never runs from name match alone."
     >
       {msg ? <p className="mb-3 text-xs text-[#1d4654]">{msg}</p> : null}
       <div className="mb-4 space-x-3 text-sm">
@@ -94,24 +121,32 @@ export default function MatchingPage() {
       </div>
       <Panel heading="Suggested proposals">
         {!data?.proposals?.length ? (
-          <p className="text-sm text-[#657683]">No stored proposals. Seed via SQL after review; none auto-verify.</p>
+          <p className="text-sm text-[#657683]">No stored proposals.</p>
         ) : (
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b text-[#657683]">
-                <th className="py-2">Bucket</th>
-                <th>Jobber</th>
-                <th>GHL</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.proposals.map((p) => (
-                <tr key={p.id} className="border-b border-[#eef1f3]">
-                  <td className="py-2">{p.bucket}</td>
-                  <td className="max-w-[140px] truncate">{p.jobber_id}</td>
-                  <td className="max-w-[140px] truncate">{p.ghl_id}</td>
+          <SearchableTable
+            placeholder="Search proposals by customer name or ID"
+            rows={data.proposals.map((p) => ({
+              id: p.id,
+              haystack: `${p.jobberName} ${p.ghlName} ${p.jobber_id} ${p.ghl_id} ${p.bucket} ${p.reason}`,
+              node: (
+                <tr key={p.id} className="border-b border-[#eef1f3] align-top">
+                  <td className="py-2">
+                    <div className="font-medium">{p.jobberName}</div>
+                    {p.namesDiffer ? (
+                      <div className="text-[11px] text-[#8a5a12]">GHL: {p.ghlName}</div>
+                    ) : (
+                      <div className="text-[11px] text-[#657683]">{p.ghlName}</div>
+                    )}
+                    <div className="text-[11px] text-[#657683]">
+                      {[p.maskedEmail, p.maskedPhone].filter(Boolean).join(" · ")}
+                    </div>
+                    <IdDetails label="Jobber ID" value={p.jobber_id} />
+                    <IdDetails label="GHL ID" value={p.ghl_id} />
+                  </td>
+                  <td>
+                    {p.bucket.replace(/_/g, " ")}
+                    <div className="text-[11px] text-[#657683]">{p.reason}</div>
+                  </td>
                   <td>{p.status}</td>
                   <td className="space-x-2">
                     {p.status === "suggested" ? (
@@ -122,20 +157,36 @@ export default function MatchingPage() {
                         <button className="underline" onClick={() => void decide(p.id, "reject")}>
                           Reject
                         </button>
+                        {!p.canAccept ? (
+                          <div className="mt-1 text-[11px] text-[#8a5a12]">Review only — cannot auto-verify</div>
+                        ) : null}
                       </>
                     ) : null}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              ),
+            }))}
+            render={(filtered) => (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b text-[#657683]">
+                    <th className="py-2">People</th>
+                    <th>Evidence</th>
+                    <th>State</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>{filtered.map((r) => r.node)}</tbody>
+              </table>
+            )}
+          />
         )}
       </Panel>
-      <Panel heading="Pending customer_links (not verified)">
-        <LinkMini rows={data?.pending ?? []} />
+      <Panel heading="Pending customer links">
+        <PeopleMini rows={data?.pending ?? []} />
       </Panel>
-      <Panel heading="Verified (read-only sample)">
-        <LinkMini rows={data?.verified ?? []} />
+      <Panel heading="Verified sample">
+        <PeopleMini rows={data?.verified ?? []} />
       </Panel>
       <Panel heading="Open customer conflicts">
         {(data?.conflicts ?? []).length === 0 ? (
@@ -144,24 +195,20 @@ export default function MatchingPage() {
           <ul className="text-xs">
             {(data?.conflicts ?? []).map((c) => (
               <li key={c.id}>
-                {c.reason} — {c.state}
+                {c.reason.replace(/_/g, " ")} — {c.state}
               </li>
             ))}
           </ul>
         )}
       </Panel>
       <Panel heading="Job ↔ opportunity candidates (read-only)">
-        <pre className="overflow-auto text-[11px]">{JSON.stringify(jobs, null, 2)}</pre>
+        <pre className="overflow-auto text-[11px]">{JSON.stringify(jobs?.counts ?? jobs, null, 2)}</pre>
       </Panel>
     </AdminShell>
   );
 }
 
-function LinkMini({
-  rows,
-}: {
-  rows: { id: string; jobber_client_id: string; ghl_contact_id: string; match_method: string }[];
-}) {
+function PeopleMini({ rows }: { rows: CustomerView[] }) {
   if (!rows.length) return <p className="text-sm text-[#657683]">None.</p>;
   return (
     <table className="w-full text-left text-xs">
@@ -174,10 +221,19 @@ function LinkMini({
       </thead>
       <tbody>
         {rows.slice(0, 80).map((r) => (
-          <tr key={r.id} className="border-b border-[#eef1f3]">
-            <td className="max-w-[180px] truncate py-2">{r.jobber_client_id}</td>
-            <td className="max-w-[140px] truncate">{r.ghl_contact_id}</td>
-            <td>{r.match_method}</td>
+          <tr key={r.id} className="border-b border-[#eef1f3] align-top">
+            <td className="py-2">
+              <Link href={`/customers/${r.id}`} className="underline">
+                {r.jobberName}
+              </Link>
+              <IdDetails label="Jobber ID" value={r.jobberClientId} />
+            </td>
+            <td>
+              {r.ghlName}
+              {r.namesDiffer ? <div className="text-[11px] text-[#8a5a12]">Names differ</div> : null}
+              <IdDetails label="GHL ID" value={r.ghlContactId} />
+            </td>
+            <td>{r.matchMethod.replace(/_/g, " ")}</td>
           </tr>
         ))}
       </tbody>
