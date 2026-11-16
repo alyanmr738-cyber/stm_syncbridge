@@ -15,9 +15,10 @@ export default async function LinksPage() {
             rows={customers.map((c) => [
               c.jobber_client_id ?? "—",
               c.ghl_contact_id ?? "—",
+              c.verified ? "verified" : "pending",
               c.match_method,
             ])}
-            heads={["Jobber client", "GHL contact", "Match"]}
+            heads={["Jobber client", "GHL contact", "State", "Match"]}
           />
         </Panel>
         <Panel heading={`Jobs (${jobs.length})`}>

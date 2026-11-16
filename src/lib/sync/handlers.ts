@@ -29,6 +29,7 @@ import {
   quoteInvoiceNoteBody,
 } from "@/lib/sync/matching";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import { identityRevision } from "@/lib/sync/candidate-matcher";
 import { normalizeEmail, normalizePhone } from "@/lib/sync/identity";
 import {
   findJobLink,
@@ -216,12 +217,23 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
     const linked = supabase
       ? await supabase
           .from("customer_links")
-          .select("jobber_client_id, verified")
+          .select("jobber_client_id, verified, last_jobber_revision, last_ghl_revision")
           .eq("id", decision.customerLinkId)
           .maybeSingle()
       : { data: null };
     jobberId = linked.data?.jobber_client_id ?? undefined;
     verified = linked.data?.verified === true;
+    const incomingRev = identityRevision({
+      email,
+      phone,
+      name: `${firstName} ${lastName}`.trim(),
+    });
+    if (
+      incomingRev === linked.data?.last_jobber_revision ||
+      incomingRev === linked.data?.last_ghl_revision
+    ) {
+      return;
+    }
   }
   if (decision.kind === "provider" && decision.jobberClientId) {
     jobberId = decision.jobberClientId;
@@ -291,11 +303,23 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
     email: aEmail,
     phone: normalizePhone(authoritative?.phones?.[0]?.number) ?? undefined,
   });
+  const aPhone = normalizePhone(authoritative?.phones?.[0]?.number) ?? undefined;
+  const jobberRev = identityRevision({
+    email: aEmail ?? null,
+    phone: aPhone ?? null,
+    name: `${authoritative?.firstName ?? ""} ${authoritative?.lastName ?? ""}`.trim(),
+  });
   await upsertCustomerLink({
     jobber_client_id: jobberId,
     ghl_contact_id: ghlId,
     match_method: "ghl_edit_then_jobber_authoritative",
     verified: true,
+    last_jobber_revision: jobberRev,
+    last_ghl_revision: identityRevision({
+      email,
+      phone,
+      name: `${firstName} ${lastName}`.trim(),
+    }),
   });
 }
 

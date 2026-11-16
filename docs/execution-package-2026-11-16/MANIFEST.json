@@ -1,0 +1,61 @@
+{
+  "name": "SyncBridge Next Execution Package",
+  "date": "2026-11-16",
+  "type": "Cursor instruction and acceptance package; not source patch",
+  "last_known_production_sha": "29edb43",
+  "target": "existing stm_syncbridge repository",
+  "files": [
+    {
+      "path": "00_START_HERE.md",
+      "sha256": "15fb02889a9f9bd0109f48b43b09fc241654a798bcd2b098da7f28152c4d5de1"
+    },
+    {
+      "path": "01_CURSOR_RUN_THIS_NOW.md",
+      "sha256": "6e8411eb2518dbb2108e3b2b3e57c4ce725c48c0c262d1daa79fc9fac3426d7d"
+    },
+    {
+      "path": "02_TRUTH_AND_RELEASE_GATES.md",
+      "sha256": "db0fc27406c6fb3a07b9be6e97da1601f97937668034780c82a7db09b47b4c95"
+    },
+    {
+      "path": "03_EXISTING_CUSTOMER_AND_OPPORTUNITY_COVERAGE.md",
+      "sha256": "00dff79b76252b0590d0126db82f303adcc3a9a396aa6a75385e5f03898280dd"
+    },
+    {
+      "path": "04_TWO_WAY_EVENTS_AND_BOOKING.md",
+      "sha256": "95d70300fac2d6063ef10f71e3b046c7fd5776ad02abe729e7799f00ff60c460"
+    },
+    {
+      "path": "05_DISABLED_FEATURES_READY_NOT_LIVE.md",
+      "sha256": "fae5acf21952672cc7710ab8315afd5df704508ec85e2c297e4513945b5f436a"
+    },
+    {
+      "path": "06_ACCEPTANCE_MATRIX.md",
+      "sha256": "6ad2f2f5ab6398992bcd8c246bcb59c3c3e525fa0004aec45c8768fc315a0d81"
+    },
+    {
+      "path": "07_RELEASE_AND_ROLLBACK.md",
+      "sha256": "1c9e86b9c081959a8c83d2821ea7528f9fc6ba7423affa94665e71bca0ddd8dc"
+    },
+    {
+      "path": "08_FINAL_HANDOFF_FORMAT.md",
+      "sha256": "f5d01829be8f2c5cbf00a63730db9043e3004286c2c231192ba433780c4374b7"
+    },
+    {
+      "path": "09_TASK_BOARD.csv",
+      "sha256": "4bc4272b2ac5bcfe3f5f003375dfb625e406d27257a5b4c5d0c3c32fb651da11"
+    },
+    {
+      "path": "10_QUICK_OPERATOR_MESSAGE.md",
+      "sha256": "1da84b2f91dc8c6c30612397aca6300724fa5b1a1ae9baafd2a5b8198f123531"
+    }
+  ],
+  "operational_gates": {
+    "A": "enabled existing verified only",
+    "B": "disabled",
+    "C": "disabled",
+    "creates": "disabled",
+    "booking": "disabled"
+  },
+  "must_not_replay_incident_events": 40
+}

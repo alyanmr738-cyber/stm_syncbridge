@@ -16,7 +16,8 @@ export default function ImportPage() {
           <a className="underline" href="/api/admin/import/dry-run">
             sample dry-run JSON
           </a>{" "}
-          (admin session) for 50 Jobber × 100 GHL records.
+          (admin session) for 50 Jobber × 100 GHL records. Full inventory and execute remain
+          blocked until HISTORICAL_IMPORT_ENABLED is separately authorized.
         </p>
       </Panel>
     </AdminShell>

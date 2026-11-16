@@ -6,8 +6,12 @@ export default async function BookingsPage() {
   return (
     <AdminShell
       title="Booking monitor"
-      subtitle="Requested vs Jobber-confirmed. Unverified slots stay pending."
+      subtitle="Requested vs Jobber-confirmed. Unverified slots stay pending. BOOKING_SYNC is off — no Jobber reservation."
     >
+      <p className="mb-3 text-sm text-[#657683]">
+        Emergency auto-book stays off. Lead time / visit buffer are independent env knobs, not a
+        hard-coded two-hour rule. Confirming a visit requires a later booking-gate approval.
+      </p>
       <Panel>
         {rows.length === 0 ? (
           <p className="text-sm text-[#657683]">No appointment links yet.</p>

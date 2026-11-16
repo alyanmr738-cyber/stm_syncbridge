@@ -16,6 +16,7 @@ export default async function ActivityPage() {
                 <th className="py-2">Kind</th>
                 <th>Source</th>
                 <th>Status</th>
+                <th>Why / error</th>
                 <th>Received</th>
                 <th></th>
               </tr>
@@ -26,6 +27,7 @@ export default async function ActivityPage() {
                   <td className="py-2 font-medium">{e.eventKind}</td>
                   <td>{e.source}</td>
                   <td>{e.status}</td>
+                  <td className="max-w-[220px] truncate text-[#657683]">{e.error ?? "—"}</td>
                   <td>{e.receivedAt}</td>
                   <td>
                     {(e.status === "dead_letter" || e.status === "retrying") && (

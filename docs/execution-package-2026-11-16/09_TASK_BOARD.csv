@@ -1,0 +1,13 @@
+priority,task,owner,allowed_scope,acceptance,test_evidence,approval_gate
+P0,Verify baseline + regression suite,Cursor,Read-only,"Current prod SHA, 80 links, 40 quarantined, A on B/C off",Health+test log,None
+P1,Customer matcher and conflict resolution UI,Cursor,Staging code; no prod bulk linking,"Live candidates incl 15 email only, 211 phone only, 49 collisions",UI+DB tests,Exact link batch approval
+P1,Existing Jobber job -> GHL opp candidate engine,Cursor,Read-only proposal,45 earlier sample; current re-audit,Matched-ID and archived safety tests,Exact job link batch approval
+P1,Jobber verified client -> existing GHL contact sync,Cursor,Already authorized Gate A,"No new create, diff+write, no loop",Real Evan prior proof+regression,Live test records only
+P1,GHL -> Jobber safe update path,Cursor,Fixtures/staging first,"Jobber authoritative, signed hooks, loop guard",Integration tests,Production pilot write approval
+P2,Booking pending/manual confirmation,Cursor,Code/test only; booking flag off,Jobber schedule verified or pending,State machine + no auto book tests,Booking activation and service map approval
+P2,Service mapping + buffer configuration,Cursor + STM operator,Read/schema audit,No assumed 2-hour rule,Mapping UI/fixtures,Service catalog/business rules
+P2,Invoice/quote/AI disabled handlers,Cursor,Code/test only,Flags off => zero provider calls,Mock counts,Future event enable scope
+P3,Review ledger + Gate C safeguards,Cursor,Code/test only,"Once/job, consent, no historical sends",Ledger/opt-out tests,Message/template/workflow approval
+P3,Backfill dry-run engine,Cursor,Read-only; Gate B off,"Snapshot, idempotent proposals, checkpoints",Zero-write dry-run,Gate B batch approval
+P3,Record creation behind flag,Cursor,Tests only; flag false,No implicit new Jobber jobs,Zero create calls disabled,Creation pilot approval
+P0,"Release smoke, documentation and rollback",Cursor,Safe code deployment,"Fresh SHA, 40 DL untouched",Smoke+rollback,Only repo/team access if blocked

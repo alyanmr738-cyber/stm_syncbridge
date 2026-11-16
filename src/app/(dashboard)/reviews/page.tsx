@@ -6,7 +6,7 @@ export default async function ReviewsPage() {
   return (
     <AdminShell
       title="Review ledger"
-      subtitle="One authorization per Jobber job. Messaging gate C is off."
+      subtitle="One authorization per Jobber job. Gate C / Workflow 4 stay off — no customer review messages."
     >
       <Panel>
         {rows.length === 0 ? (
