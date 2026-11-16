@@ -13,7 +13,7 @@ export default async function ActivityPage() {
   return (
     <AdminShell
       title="Sync activity"
-      subtitle="Durable Jobber and GHL events, labeled with people and jobs when known."
+      subtitle="Queue status is not a provider write. Historical succeeded events without process_outcome show Write outcome not recorded."
     >
       <Panel>
         {rows.length === 0 ? (

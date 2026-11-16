@@ -10,19 +10,39 @@ export function collapseRepeatedName(value: string): string {
   return t;
 }
 
+export function constructProviderName(input: {
+  firstName?: string | null;
+  lastName?: string | null;
+  name?: string | null;
+  companyName?: string | null;
+}): string {
+  const company = collapseRepeatedName(String(input.companyName ?? "").trim());
+  const first = String(input.firstName ?? "").trim();
+  const last = String(input.lastName ?? "").trim();
+  const person = collapseRepeatedName([first, last].filter(Boolean).join(" "));
+  const rawName = collapseRepeatedName(String(input.name ?? "").trim());
+  if (person && rawName && person.toLowerCase() === rawName.toLowerCase()) return person;
+  if (person && rawName && rawName.toLowerCase().startsWith(person.toLowerCase())) return person;
+  if (person) return person;
+  if (rawName) return rawName;
+  return company;
+}
+
 export function displayName(
   parts: Array<string | null | undefined>,
   fallback = "Name unavailable"
 ): string {
-  const s = collapseRepeatedName(
-    parts
-      .map((p) => String(p ?? "").trim())
-      .filter(Boolean)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim()
-  );
-  return s || fallback;
+  const unique: string[] = [];
+  for (const p of parts) {
+    const s = collapseRepeatedName(String(p ?? "").trim());
+    if (!s) continue;
+    if (unique.some((u) => u.toLowerCase() === s.toLowerCase())) continue;
+    if (unique.some((u) => s.toLowerCase().includes(u.toLowerCase()) && s.length > u.length)) {
+      continue;
+    }
+    unique.push(s);
+  }
+  return collapseRepeatedName(unique.join(" ")) || fallback;
 }
 
 export function namesDiffer(a?: string | null, b?: string | null): boolean {

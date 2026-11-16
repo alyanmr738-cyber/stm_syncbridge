@@ -21,12 +21,17 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   if (!row) notFound();
   const [views] = [await enrichCustomers([row])];
   const customer = views[0]!;
-  const { data: jobs } = await supabase
+  const { data: allJobs } = await supabase
     .from("job_links")
-    .select("id, jobber_job_id, ghl_opportunity_id, last_job_status, customer_link_id")
-    .eq("customer_link_id", id)
-    .limit(100);
-  const jobIds = (jobs ?? []).map((j) => j.id);
+    .select(
+      "id, jobber_job_id, ghl_opportunity_id, last_job_status, last_synced_at, customer_link_id"
+    )
+    .limit(200);
+  const jobs = allJobs ?? [];
+  const jobViews = (await enrichJobs(jobs, views)).filter(
+    (j) => j.customerLinkId === id || j.jobberClientId === customer.jobberClientId
+  );
+  const jobIds = jobViews.map((j) => j.id);
   const { data: visits } = jobIds.length
     ? await supabase
         .from("appointment_links")
@@ -34,7 +39,6 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         .in("job_link_id", jobIds)
         .limit(50)
     : { data: [] };
-  const jobViews = await enrichJobs(jobs ?? [], views);
   const { quotes, invoices } = await listFinance();
   const quoteViews = (await enrichFinance(quotes, "quote", views)).filter(
     (q) => q.customerLinkId === id
@@ -90,7 +94,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <ul className="text-sm">
               {jobViews.map((j) => (
                 <li key={j.id}>
-                  {j.jobberTitle} · {j.statusLabel}
+                  <Link href={`/jobs/${j.id}`} className="underline">
+                    {j.jobberTitle}
+                  </Link>{" "}
+                  · {j.statusLabel}
                   {j.missingOpportunity ? " · no opportunity" : ` · ${j.opportunityTitle}`}
                 </li>
               ))}
@@ -133,7 +140,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <ul className="text-xs">
               {history.map((e) => (
                 <li key={e.id}>
-                  {e.eventKind} · {e.status} · {e.receivedAt}
+                  {e.eventKind} · {e.outcomeLabel} · {e.receivedLabel}
                 </li>
               ))}
             </ul>

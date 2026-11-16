@@ -1,3 +1,4 @@
+import type { ProcessOutcome } from "@/lib/display/process-outcome";
 import { getEnv } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
 import { assertPilotWrite } from "@/lib/config/pilot";
@@ -51,13 +52,13 @@ function emailsFromClient(client: Awaited<ReturnType<typeof fetchJobberClient>>)
   return client?.emails?.map((n) => n.address).filter(Boolean) as string[] | undefined;
 }
 
-export async function syncJobberClient(event: LoadedEvent): Promise<void> {
+export async function syncJobberClient(event: LoadedEvent): Promise<ProcessOutcome> {
   const clientId = event.providerEntityId;
   if (!isJobberEncodedId(clientId)) {
-    return;
+    return "no_change";
   }
   const client = await fetchJobberClient(clientId);
-  if (!client) return;
+  if (!client) return "no_change";
   const email = emailsFromClient(client)?.[0];
   const phone = client.phones?.[0]?.number;
   const decision = await matchCustomer({
@@ -73,7 +74,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
       reason: "ambiguous_customer_match",
       details: { candidateIds: decision.candidateIds },
     });
-    return;
+    return "blocked_unverified";
   }
 
   let ghlId: string | undefined;
@@ -111,7 +112,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
         reason: "ambiguous_ghl_search",
         details: { candidateIds: ids },
       });
-      return;
+      return "blocked_unverified";
     }
   }
 
@@ -122,7 +123,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
       entityId: client.id,
       reason: "no_existing_ghl_contact",
     });
-    return;
+    return "blocked_unverified";
   }
   if (!verified) {
     await upsertCustomerLink({
@@ -138,7 +139,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
       reason: "unverified_customer_identity",
       details: { ghlContactId: ghlId },
     });
-    return;
+    return "blocked_unverified";
   }
 
   assertPilotWrite(`jobber.client:${event.eventKind}`, {
@@ -152,7 +153,7 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     name: `${client.firstName ?? ""} ${client.lastName ?? client.name ?? ""}`.trim(),
   });
   if (ghlId && shouldSkipInboundRevision({ incomingRev: revision, lastJobberRevision: priorRevision })) {
-    return;
+    return "no_change";
   }
   const contact = await upsertGhlContact({
     id: ghlId,
@@ -191,12 +192,13 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
       { onConflict: "jobber_property_id" }
     );
   }
+  return "provider_write";
 }
 
-export async function syncGhlContact(event: LoadedEvent): Promise<void> {
+export async function syncGhlContact(event: LoadedEvent): Promise<ProcessOutcome> {
   const payload = event.payload;
   const ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
-  if (!ghlId || ghlId === "unknown") return;
+  if (!ghlId || ghlId === "unknown") return "no_change";
   const live = await getGhlContact(ghlId);
   const email = normalizeEmail(String(payload.email ?? live?.email ?? ""));
   const phone = normalizePhone(String(payload.phone ?? live?.phone ?? ""));
@@ -211,7 +213,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       entityId: ghlId,
       reason: "ambiguous_customer_match",
     });
-    return;
+    return "blocked_unverified";
   }
 
   let jobberId: string | undefined;
@@ -239,7 +241,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
         lastGhlRevision: linked.data?.last_ghl_revision as string | null,
       })
     ) {
-      return;
+      return "no_change";
     }
   }
   if (decision.kind === "provider" && decision.jobberClientId) {
@@ -260,7 +262,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
         reason: "ambiguous_jobber_search",
         details: { candidateIds: ids },
       });
-      return;
+      return "blocked_unverified";
     }
   }
 
@@ -271,7 +273,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       entityId: ghlId,
       reason: "no_existing_jobber_client",
     });
-    return;
+    return "blocked_unverified";
   }
   if (!verified) {
     await upsertCustomerLink({
@@ -287,7 +289,7 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       reason: "unverified_customer_identity",
       details: { jobberClientId: jobberId },
     });
-    return;
+    return "blocked_unverified";
   }
 
   assertPilotWrite(`ghl.contact:${event.eventKind}`, {
@@ -328,9 +330,10 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       name: `${firstName} ${lastName}`.trim(),
     }),
   });
+  return "provider_write";
 }
 
-export async function syncBooking(event: LoadedEvent): Promise<void> {
+export async function syncBooking(event: LoadedEvent): Promise<ProcessOutcome> {
   const apptId = String(
     event.payload.appointmentId ?? event.payload.id ?? event.providerEntityId ?? event.id
   );
@@ -345,7 +348,7 @@ export async function syncBooking(event: LoadedEvent): Promise<void> {
       },
       { onConflict: "ghl_appointment_id" }
     );
-    return;
+    return "local_state_only";
   }
   await supabase?.from("appointment_links").insert({
     ghl_appointment_id: apptId,
@@ -360,13 +363,14 @@ export async function syncBooking(event: LoadedEvent): Promise<void> {
       note: "Jobber has visitEditSchedule/scheduledItems but no proven availability reservation API",
     },
   });
+  return "local_state_only";
 }
 
-export async function syncJobberJob(event: LoadedEvent): Promise<void> {
+export async function syncJobberJob(event: LoadedEvent): Promise<ProcessOutcome> {
   const jobId = event.providerEntityId;
-  if (!isJobberEncodedId(jobId)) return;
+  if (!isJobberEncodedId(jobId)) return "no_change";
   const job = await fetchJobberJob(jobId);
-  if (!job) return;
+  if (!job) return "no_change";
   const existing = await findJobLink({ jobberJobId: job.id });
   const env = getEnv();
   if (existing?.ghl_opportunity_id) {
@@ -386,12 +390,17 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
           ? STM_GHL.jobCompletedStageId
           : STM_GHL.jobScheduledStageId,
       });
+      await upsertJobLink({
+        jobber_job_id: job.id,
+        last_job_status: job.jobStatus,
+      });
+      return "provider_write";
     }
     await upsertJobLink({
       jobber_job_id: job.id,
       last_job_status: job.jobStatus,
     });
-    return;
+    return "local_state_only";
   }
 
   const supabase = getSupabaseAdmin();
@@ -436,7 +445,7 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
         jobber_job_id: job.id,
         last_job_status: job.jobStatus,
       });
-      return;
+      return "local_state_only";
     }
     if (pipelineOpps.length === 1) {
       await upsertJobLink({
@@ -444,7 +453,7 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
         ghl_opportunity_id: pipelineOpps[0]!.id,
         last_job_status: job.jobStatus,
       });
-      return;
+      return "local_state_only";
     }
     assertPilotWrite("jobber.job.create_opportunity", {
       jobberJobId: job.id,
@@ -461,16 +470,17 @@ export async function syncJobberJob(event: LoadedEvent): Promise<void> {
       ghl_opportunity_id: opp.id,
       last_job_status: job.jobStatus,
     });
-    return;
+    return "provider_write";
   }
 
   await upsertJobLink({
     jobber_job_id: job.id,
     last_job_status: job.jobStatus,
   });
+  return "local_state_only";
 }
 
-export async function syncJobClosed(event: LoadedEvent): Promise<void> {
+export async function syncJobClosed(event: LoadedEvent): Promise<ProcessOutcome> {
   const env = getEnv();
   const jobId = event.providerEntityId ?? event.id;
   const encoded = isJobberEncodedId(jobId);
@@ -488,7 +498,7 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
       },
       { onConflict: "jobber_job_id" }
     );
-    return;
+    return "local_state_only";
   }
   const existing = await findJobLink({ jobberJobId: jobId });
   const supabase = getSupabaseAdmin();
@@ -564,9 +574,16 @@ export async function syncJobClosed(event: LoadedEvent): Promise<void> {
     },
     { onConflict: "jobber_account_id,jobber_job_id,review_kind" }
   );
+  if (existing?.ghl_opportunity_id && env.JOB_COMPLETION_SYNC_ENABLED) {
+    return "provider_write";
+  }
+  return "local_state_only";
 }
 
-export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "invoice"): Promise<void> {
+export async function syncQuoteOrInvoice(
+  event: LoadedEvent,
+  kind: "quote" | "invoice"
+): Promise<ProcessOutcome> {
   const env = getEnv();
   const supabase = getSupabaseAdmin();
   const id = event.providerEntityId ?? event.id;
@@ -603,7 +620,7 @@ export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "in
     existingFinance.data?.last_status === status &&
     existingFinance.data?.ghl_reference
   ) {
-    return;
+    return "no_change";
   }
   if (writeFlag && clientId) {
     const { data: link } = supabase
@@ -634,13 +651,14 @@ export async function syncQuoteOrInvoice(event: LoadedEvent, kind: "quote" | "in
     },
     { onConflict: col }
   );
+  return ghlNoteId ? "provider_write" : "local_state_only";
 }
 
-export async function syncAiSummary(event: LoadedEvent): Promise<void> {
+export async function syncAiSummary(event: LoadedEvent): Promise<ProcessOutcome> {
   const env = getEnv();
-  if (!env.AI_SUMMARY_SYNC_ENABLED) return;
+  if (!env.AI_SUMMARY_SYNC_ENABLED) return "no_change";
   const text = String(event.payload.summary ?? event.payload.body ?? "");
-  if (!text) return;
+  if (!text) return "no_change";
   const hash = Buffer.from(text).toString("base64").slice(0, 64);
   const supabase = getSupabaseAdmin();
   const key = String(event.payload.eventKey ?? event.id);
@@ -651,7 +669,7 @@ export async function syncAiSummary(event: LoadedEvent): Promise<void> {
         .eq("ghl_summary_event_key", key)
         .maybeSingle()
     : { data: null };
-  if (existingRes.data?.summary_hash === hash) return;
+  if (existingRes.data?.summary_hash === hash) return "no_change";
   const clientId = String(event.payload.jobberClientId ?? "");
   const jobId = String(event.payload.jobberJobId ?? "");
   assertPilotWrite("ai.summary_note", {
@@ -671,6 +689,7 @@ export async function syncAiSummary(event: LoadedEvent): Promise<void> {
     jobber_job_id: jobId || null,
     status: "delivered",
   });
+  return "provider_write";
 }
 
 export { GateClosedError };

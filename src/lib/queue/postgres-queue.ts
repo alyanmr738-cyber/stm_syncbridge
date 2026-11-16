@@ -37,7 +37,7 @@ export class PostgresEventQueue implements EventQueue {
   }
 
   async processNext(
-    handler: (payload: QueueJobPayload) => Promise<void>
+    handler: (payload: QueueJobPayload) => Promise<unknown>
   ): Promise<boolean> {
     const supabase = getSupabaseAdmin();
     if (!supabase) return false;

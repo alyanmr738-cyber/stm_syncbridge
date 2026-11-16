@@ -22,7 +22,7 @@ export class InMemoryEventQueue implements EventQueue {
   }
 
   async processNext(
-    handler: (payload: QueueJobPayload) => Promise<void>
+    handler: (payload: QueueJobPayload) => Promise<unknown>
   ): Promise<boolean> {
     const job = this.pending.shift();
     if (!job) return false;

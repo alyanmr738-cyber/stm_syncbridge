@@ -138,12 +138,19 @@ export async function createJobberClient(input: {
   return data.clientCreate.client.id;
 }
 
+export type JobberJobClient = {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  name?: string | null;
+};
+
 export async function fetchJobberJob(id: string): Promise<{
   id: string;
   jobStatus?: string;
   title?: string;
   jobNumber?: string;
-  client?: { id: string };
+  client?: JobberJobClient | null;
 } | null> {
   if (!isJobberEncodedId(id)) return null;
   const data = await jobberGraphql<{
@@ -152,11 +159,14 @@ export async function fetchJobberJob(id: string): Promise<{
       jobStatus?: string;
       title?: string;
       jobNumber?: string;
-      client?: { id: string };
+      client?: JobberJobClient | null;
     } | null;
   }>(
     `query Job($id: EncodedId!) {
-      job(id: $id) { id jobStatus title jobNumber client { id } }
+      job(id: $id) {
+        id jobStatus title jobNumber
+        client { id firstName lastName name }
+      }
     }`,
     { id }
   );
@@ -167,7 +177,7 @@ export async function fetchJobberQuote(id: string): Promise<{
   id: string;
   quoteNumber?: string;
   quoteStatus?: string;
-  client?: { id: string };
+  client?: JobberJobClient | null;
 } | null> {
   if (!isJobberEncodedId(id)) return null;
   const data = await jobberGraphql<{
@@ -175,11 +185,11 @@ export async function fetchJobberQuote(id: string): Promise<{
       id: string;
       quoteNumber?: string;
       quoteStatus?: string;
-      client?: { id: string };
+      client?: JobberJobClient | null;
     } | null;
   }>(
     `query Quote($id: EncodedId!) {
-      quote(id: $id) { id quoteNumber quoteStatus client { id } }
+      quote(id: $id) { id quoteNumber quoteStatus client { id firstName lastName name } }
     }`,
     { id }
   );
@@ -190,7 +200,7 @@ export async function fetchJobberInvoice(id: string): Promise<{
   id: string;
   invoiceNumber?: string;
   invoiceStatus?: string;
-  client?: { id: string };
+  client?: JobberJobClient | null;
 } | null> {
   if (!isJobberEncodedId(id)) return null;
   const data = await jobberGraphql<{
@@ -198,11 +208,11 @@ export async function fetchJobberInvoice(id: string): Promise<{
       id: string;
       invoiceNumber?: string;
       invoiceStatus?: string;
-      client?: { id: string };
+      client?: JobberJobClient | null;
     } | null;
   }>(
     `query Invoice($id: EncodedId!) {
-      invoice(id: $id) { id invoiceNumber invoiceStatus client { id } }
+      invoice(id: $id) { id invoiceNumber invoiceStatus client { id firstName lastName name } }
     }`,
     { id }
   );

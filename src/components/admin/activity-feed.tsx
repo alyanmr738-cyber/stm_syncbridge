@@ -36,6 +36,7 @@ export async function ActivityFeed({ heading = "Recent sync activity" }: { headi
                 <div className="text-[13px] font-semibold">{e.eventKind}</div>
                 <div className="mt-0.5 text-xs text-[#71808b]">
                   {e.source} · {e.status}
+                  {e.processOutcome ? ` · ${e.processOutcome}` : " · write outcome not recorded"}
                   {e.error ? ` · ${e.error}` : ""}
                 </div>
               </div>

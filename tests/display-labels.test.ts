@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  constructProviderName,
   displayName,
   formatJobStatus,
   ghlSyncLabel,
@@ -10,6 +11,25 @@ import {
 } from "@/lib/display/format";
 
 describe("admin display labels", () => {
+  it("does not concatenate Jobber name with first+last when they repeat", () => {
+    expect(
+      constructProviderName({
+        firstName: "Dominique",
+        lastName: "Tollis",
+        name: "Dominique Tollis Dominique Tollis",
+      })
+    ).toBe("Dominique Tollis");
+    expect(
+      constructProviderName({
+        firstName: null,
+        lastName: null,
+        name: "Acme Septic",
+        companyName: "Acme Septic",
+      })
+    ).toBe("Acme Septic");
+    expect(constructProviderName({ firstName: "Pat", lastName: null, name: null })).toBe("Pat");
+  });
+
   it("falls back when names are missing", () => {
     expect(displayName([null, "", "  "], "Name unavailable")).toBe("Name unavailable");
     expect(displayName(["Evan", "Test"])).toBe("Evan Test");

@@ -74,13 +74,25 @@ export async function persistAndEnqueue(
 export async function listRecentEvents(limit = 50) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
-  const { data } = await supabase
+  const withOutcome = await supabase
     .from("sync_events")
     .select(
-      "id, source, event_kind, provider_entity_id, status, last_error_redacted, received_at, processed_at"
+      "id, source, event_kind, provider_entity_id, status, last_error_redacted, received_at, processed_at, process_outcome"
     )
     .order("received_at", { ascending: false })
     .limit(limit);
+  const data =
+    withOutcome.error && /process_outcome/i.test(withOutcome.error.message)
+      ? (
+          await supabase
+            .from("sync_events")
+            .select(
+              "id, source, event_kind, provider_entity_id, status, last_error_redacted, received_at, processed_at"
+            )
+            .order("received_at", { ascending: false })
+            .limit(limit)
+        ).data
+      : withOutcome.data;
   return (data ?? []).map((row) => ({
     id: row.id as string,
     source: row.source as string,
@@ -88,7 +100,9 @@ export async function listRecentEvents(limit = 50) {
     status: row.status as string,
     error: row.last_error_redacted as string | null,
     receivedAt: row.received_at as string,
+    processedAt: (row.processed_at as string | null) ?? null,
     providerEntityId: (row.provider_entity_id as string | null) ?? null,
+    processOutcome: ((row as { process_outcome?: string | null }).process_outcome as string | null) ?? null,
   }));
 }
 

@@ -9,7 +9,7 @@ import {
   type JobberClient,
 } from "@/lib/jobber/ops";
 import { jobberGraphql } from "@/lib/jobber/graphql";
-import { displayName } from "@/lib/display/format";
+import { constructProviderName, displayName } from "@/lib/display/format";
 
 export type LabelKey = {
   provider: "jobber" | "ghl";
@@ -28,9 +28,11 @@ const TTL_MS = 12 * 60 * 60 * 1000;
 const LIVE_CAP = 24;
 
 function clientTitle(c: JobberClient): string {
-  const fromParts = displayName([c.firstName, c.lastName], "");
-  if (fromParts) return fromParts;
-  return displayName([c.name], "");
+  return constructProviderName({
+    firstName: c.firstName,
+    lastName: c.lastName,
+    name: c.name,
+  });
 }
 
 export async function readCachedLabels(keys: LabelKey[]): Promise<Map<string, EntityLabel>> {
@@ -46,6 +48,14 @@ export async function readCachedLabels(keys: LabelKey[]): Promise<Map<string, En
   for (const row of data ?? []) {
     const fetched = new Date(String(row.fetched_at)).getTime();
     if (Number.isFinite(fetched) && now - fetched > TTL_MS) continue;
+    const extra = (row.extra as Record<string, unknown>) ?? {};
+    if (
+      row.provider === "jobber" &&
+      ["job", "quote", "invoice"].includes(String(row.entity_type)) &&
+      !extra.clientName
+    ) {
+      continue;
+    }
     map.set(`${row.provider}:${row.entity_type}:${row.entity_id}`, {
       provider: row.provider as EntityLabel["provider"],
       entity_type: row.entity_type as EntityLabel["entity_type"],
@@ -157,10 +167,22 @@ async function liveFetch(key: LabelKey): Promise<EntityLabel> {
     if (key.provider === "jobber" && key.entity_type === "job") {
       const j = await fetchJobberJob(key.entity_id);
       const title = j?.title || (j?.jobNumber ? `Job ${j.jobNumber}` : "");
+      const clientName = j?.client
+        ? constructProviderName({
+            firstName: j.client.firstName,
+            lastName: j.client.lastName,
+            name: j.client.name,
+          })
+        : "";
       return {
         ...key,
         title,
-        extra: { jobNumber: j?.jobNumber ?? null, jobStatus: j?.jobStatus ?? null, clientId: j?.client?.id ?? null },
+        extra: {
+          jobNumber: j?.jobNumber ?? null,
+          jobStatus: j?.jobStatus ?? null,
+          clientId: j?.client?.id ?? null,
+          clientName,
+        },
         lookup_ok: Boolean(j),
       };
     }
@@ -169,7 +191,18 @@ async function liveFetch(key: LabelKey): Promise<EntityLabel> {
       return {
         ...key,
         title: q?.quoteNumber ? `Quote ${q.quoteNumber}` : "",
-        extra: { quoteNumber: q?.quoteNumber ?? null, quoteStatus: q?.quoteStatus ?? null, clientId: q?.client?.id ?? null },
+        extra: {
+          quoteNumber: q?.quoteNumber ?? null,
+          quoteStatus: q?.quoteStatus ?? null,
+          clientId: q?.client?.id ?? null,
+          clientName: q?.client
+            ? constructProviderName({
+                firstName: (q.client as { firstName?: string }).firstName,
+                lastName: (q.client as { lastName?: string }).lastName,
+                name: (q.client as { name?: string }).name,
+              })
+            : "",
+        },
         lookup_ok: Boolean(q),
       };
     }
@@ -182,6 +215,13 @@ async function liveFetch(key: LabelKey): Promise<EntityLabel> {
           invoiceNumber: inv?.invoiceNumber ?? null,
           invoiceStatus: inv?.invoiceStatus ?? null,
           clientId: inv?.client?.id ?? null,
+          clientName: inv?.client
+            ? constructProviderName({
+                firstName: (inv.client as { firstName?: string }).firstName,
+                lastName: (inv.client as { lastName?: string }).lastName,
+                name: (inv.client as { name?: string }).name,
+              })
+            : "",
         },
         lookup_ok: Boolean(inv),
       };
@@ -221,17 +261,32 @@ export async function hydrateLabels(keys: LabelKey[]): Promise<Map<string, Entit
   const cached = await readCachedLabels(wanted);
   const missing = wanted.filter((k) => !cached.has(`${k.provider}:${k.entity_type}:${k.entity_id}`));
   const jobberClients = missing.filter((k) => k.provider === "jobber" && k.entity_type === "client");
-  const others = missing.filter((k) => !(k.provider === "jobber" && k.entity_type === "client"));
-  const toLive = others.slice(0, LIVE_CAP);
+  const jobberRecords = missing.filter(
+    (k) => k.provider === "jobber" && k.entity_type !== "client"
+  );
+  const ghlMissing = missing.filter((k) => k.provider === "ghl").slice(0, LIVE_CAP);
   const fresh: EntityLabel[] = [];
   if (jobberClients.length) {
-    fresh.push(...(await batchJobberClients(jobberClients.map((k) => k.entity_id).slice(0, LIVE_CAP))));
+    fresh.push(...(await batchJobberClients(jobberClients.map((k) => k.entity_id))));
   }
   const concurrency = 4;
-  for (let i = 0; i < toLive.length; i += concurrency) {
-    const chunk = toLive.slice(i, i + concurrency);
-    const part = await Promise.all(chunk.map(liveFetch));
-    fresh.push(...part);
+  for (let i = 0; i < jobberRecords.length; i += concurrency) {
+    const chunk = jobberRecords.slice(i, i + concurrency);
+    fresh.push(...(await Promise.all(chunk.map(liveFetch))));
+  }
+  for (let i = 0; i < ghlMissing.length; i += concurrency) {
+    const chunk = ghlMissing.slice(i, i + concurrency);
+    fresh.push(...(await Promise.all(chunk.map(liveFetch))));
+  }
+  const nestedClients = [
+    ...new Set(
+      fresh
+        .map((r) => String(r.extra.clientId ?? ""))
+        .filter((id) => id.startsWith("Z2lkOi8v"))
+    ),
+  ].filter((id) => !cached.has(`jobber:client:${id}`) && !fresh.some((r) => r.entity_type === "client" && r.entity_id === id));
+  if (nestedClients.length) {
+    fresh.push(...(await batchJobberClients(nestedClients)));
   }
   await writeLabels(fresh);
   for (const row of fresh) {
