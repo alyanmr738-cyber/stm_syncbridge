@@ -4,6 +4,7 @@ import { JOBBER_SUPPORTED_API_VERSION } from "@/lib/jobber/version";
 import {
   oauthRecoveryQuarantineActive,
   oauthRecoveryQuarantineSince,
+  oauthRecoveryQuarantineUntil,
 } from "@/lib/jobber/recovery-quarantine";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 
@@ -37,6 +38,7 @@ export async function GET() {
     oauthRecovery: {
       quarantineActive: oauthRecoveryQuarantineActive(),
       quarantineSince: oauthRecoveryQuarantineSince(),
+      quarantineUntil: oauthRecoveryQuarantineUntil(),
       autoReleaseAuthBackoff: process.env.JOBBER_AUTO_RELEASE_AUTH_BACKOFF === "true",
     },
     jobberConnection: jobber,

@@ -54,6 +54,7 @@ const envSchema = z.object({
   USE_PROVIDER_MOCKS: booleanFlag,
   OAUTH_RECOVERY_QUARANTINE_ENABLED: booleanFlag,
   OAUTH_RECOVERY_QUARANTINE_SINCE: z.string().optional(),
+  OAUTH_RECOVERY_QUARANTINE_UNTIL: z.string().optional(),
   JOBBER_AUTO_RELEASE_AUTH_BACKOFF: booleanFlag,
 });
 
