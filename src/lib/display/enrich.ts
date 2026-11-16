@@ -78,11 +78,11 @@ export async function enrichCustomers(
     const fromJobberRev = parseRevisionBlob(r.last_jobber_revision);
     const fromGhlRev = parseRevisionBlob(r.last_ghl_revision);
     const jobberName = displayName(
-      [jobberLbl?.title, fromJobberRev.name],
+      [jobberLbl?.title || fromJobberRev.name],
       r.jobber_client_id ? "Jobber customer (name unavailable)" : "No Jobber customer"
     );
     const ghlName = displayName(
-      [ghlLbl?.title, fromGhlRev.name],
+      [ghlLbl?.title || fromGhlRev.name],
       r.ghl_contact_id ? "GHL contact (name unavailable)" : "No GHL contact"
     );
     const email =

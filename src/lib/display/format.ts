@@ -15,6 +15,9 @@ export function namesDiffer(a?: string | null, b?: string | null): boolean {
   const na = displayName([a], "");
   const nb = displayName([b], "");
   if (!na || !nb) return false;
+  if (/unavailable|unlinked|unknown/i.test(na) || /unavailable|unlinked|unknown/i.test(nb)) {
+    return false;
+  }
   return na.toLowerCase() !== nb.toLowerCase();
 }
 

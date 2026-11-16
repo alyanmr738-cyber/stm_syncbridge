@@ -28,7 +28,9 @@ const TTL_MS = 12 * 60 * 60 * 1000;
 const LIVE_CAP = 24;
 
 function clientTitle(c: JobberClient): string {
-  return displayName([c.firstName, c.lastName, c.name], "");
+  const fromParts = displayName([c.firstName, c.lastName], "");
+  if (fromParts) return fromParts;
+  return displayName([c.name], "");
 }
 
 export async function readCachedLabels(keys: LabelKey[]): Promise<Map<string, EntityLabel>> {

@@ -24,6 +24,7 @@ describe("admin display labels", () => {
     expect(namesDiffer("Sherri Waldren", "Sherry Waldron")).toBe(true);
     expect(namesDiffer("Evan Test", "evan test")).toBe(false);
     expect(namesDiffer("Evan Test", "")).toBe(false);
+    expect(namesDiffer("Evan Test", "GHL contact (name unavailable)")).toBe(false);
   });
 
   it("parses revision blobs and ignores invalid JSON", () => {
