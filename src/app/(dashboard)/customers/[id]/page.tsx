@@ -25,14 +25,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     .eq("id", id)
     .maybeSingle();
   if (!row) notFound();
-  const [conflicts, stageNames, syncEvidence] = await Promise.all([
+  const [allConflicts, stageNames, syncEvidence] = await Promise.all([
     listConflicts(),
     getGhlPipelineStageMap(),
     loadCustomerSyncEvidence([row]),
   ]);
   const [views] = [
     await enrichCustomers([row], {
-      conflictedCustomerLinkIds: customerLinksWithOpenConflicts(conflicts, [row]),
+      conflictedCustomerLinkIds: customerLinksWithOpenConflicts(allConflicts, [row]),
       syncEvidence,
     }),
   ];
@@ -69,7 +69,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       e.providerEntityId === customer.jobberClientId ||
       e.providerEntityId === customer.ghlContactId
   );
-  const { data: conflicts } = await supabase
+  const { data: customerConflicts } = await supabase
     .from("sync_conflicts")
     .select("id, reason, state, created_at, source_entity_id")
     .or(
@@ -171,11 +171,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           )}
         </Panel>
         <Panel heading="Conflicts">
-          {(conflicts ?? []).length === 0 ? (
+          {(customerConflicts ?? []).length === 0 ? (
             <p className="text-sm text-[#657683]">None.</p>
           ) : (
             <ul className="text-xs">
-              {(conflicts ?? []).map((c) => (
+              {(customerConflicts ?? []).map((c) => (
                 <li key={c.id}>
                   {c.reason} · {c.state}
                 </li>
