@@ -37,6 +37,25 @@ export default function MatchingPage() {
     void load();
   }, []);
 
+  async function refresh(persist: boolean) {
+    if (
+      !window.confirm(
+        persist
+          ? "Revalidate pending links live and store suggested proposals? This will not verify customer_links."
+          : "Revalidate pending links live without storing?"
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/admin/matching/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirm: true, persist }),
+    });
+    setMsg(JSON.stringify(await res.json()));
+    await load();
+  }
+
   async function decide(proposalId: string, action: "accept" | "reject") {
     if (!window.confirm(`Confirm ${action} for proposal ${proposalId}? This never auto-links email-only or phone-only.`)) {
       return;
@@ -57,6 +76,14 @@ export default function MatchingPage() {
       subtitle="Candidates only. Email-only / phone-only never become verified from this screen. Batch B is not applied."
     >
       {msg ? <p className="mb-3 text-xs text-[#1d4654]">{msg}</p> : null}
+      <div className="mb-4 space-x-3 text-sm">
+        <button className="underline" onClick={() => void refresh(false)}>
+          Live revalidate (no store)
+        </button>
+        <button className="underline" onClick={() => void refresh(true)}>
+          Store suggested proposals
+        </button>
+      </div>
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         {Object.entries(data?.counts ?? {}).map(([k, v]) => (
           <div key={k} className="rounded-lg border border-[#e1e8ec] bg-white p-3 text-sm">

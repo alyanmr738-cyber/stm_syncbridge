@@ -110,3 +110,35 @@ export function classifyCustomerPair(opts: {
 export function canAcceptVerifiedLink(bucket: CandidateBucket): boolean {
   return bucket === "email_and_phone_unique";
 }
+
+export function shouldSkipInboundRevision(opts: {
+  incomingRev: string;
+  lastJobberRevision?: string | null;
+  lastGhlRevision?: string | null;
+}): boolean {
+  return (
+    opts.incomingRev === opts.lastJobberRevision || opts.incomingRev === opts.lastGhlRevision
+  );
+}
+
+export type GhlInboundPlan =
+  | "skip_loop"
+  | "conflict_ambiguous"
+  | "conflict_unverified"
+  | "conflict_no_jobber"
+  | "write_existing";
+
+export function planGhlInboundSync(opts: {
+  ambiguous?: boolean;
+  jobberId?: string | null;
+  verified: boolean;
+  incomingRev: string;
+  lastJobberRevision?: string | null;
+  lastGhlRevision?: string | null;
+}): GhlInboundPlan {
+  if (opts.ambiguous) return "conflict_ambiguous";
+  if (shouldSkipInboundRevision(opts)) return "skip_loop";
+  if (!opts.jobberId) return "conflict_no_jobber";
+  if (!opts.verified) return "conflict_unverified";
+  return "write_existing";
+}

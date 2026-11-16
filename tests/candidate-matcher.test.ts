@@ -10,8 +10,8 @@ import {
 describe("candidate matcher (never auto-verify)", () => {
   it("classifies unique email+phone+name as proposal-only", () => {
     const r = classifyCustomerPair({
-      jobber: { id: "j1", emails: ["a@x.com"], phones: ["+15551212"], name: "Evan Test" },
-      ghl: { id: "g1", emails: ["a@x.com"], phones: ["+1 555-1212"], name: "Evan Test" },
+      jobber: { id: "j1", emails: ["a@x.com"], phones: ["+15551212121"], name: "Evan Test" },
+      ghl: { id: "g1", emails: ["a@x.com"], phones: ["+1 555-121-2121"], name: "Evan Test" },
       emailUnique: true,
       phoneUnique: true,
     });

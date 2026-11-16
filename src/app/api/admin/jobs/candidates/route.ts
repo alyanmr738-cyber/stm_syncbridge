@@ -1,5 +1,6 @@
 import { getAdminSession } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import { buildJobOpportunityCandidates } from "@/lib/sync/job-opp-candidates";
 
 export async function GET() {
   const session = await getAdminSession();
@@ -35,5 +36,6 @@ export async function GET() {
     },
     missingOpportunitySample: missingOpp.slice(0, 25),
     withOpportunitySample: withOpp.slice(0, 15),
+    live: await buildJobOpportunityCandidates(),
   });
 }

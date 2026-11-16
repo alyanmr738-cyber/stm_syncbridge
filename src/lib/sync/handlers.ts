@@ -29,7 +29,7 @@ import {
   quoteInvoiceNoteBody,
 } from "@/lib/sync/matching";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
-import { identityRevision } from "@/lib/sync/candidate-matcher";
+import { identityRevision, shouldSkipInboundRevision } from "@/lib/sync/candidate-matcher";
 import { normalizeEmail, normalizePhone } from "@/lib/sync/identity";
 import {
   findJobLink,
@@ -146,8 +146,12 @@ export async function syncJobberClient(event: LoadedEvent): Promise<void> {
     ghlContactId: ghlId,
   });
   const mapped = jobberClientToGhlPayload(client);
-  const revision = JSON.stringify({ email, phone, name: client.name });
-  if (ghlId && priorRevision === revision) {
+  const revision = identityRevision({
+    email,
+    phone,
+    name: `${client.firstName ?? ""} ${client.lastName ?? client.name ?? ""}`.trim(),
+  });
+  if (ghlId && shouldSkipInboundRevision({ incomingRev: revision, lastJobberRevision: priorRevision })) {
     return;
   }
   const contact = await upsertGhlContact({
@@ -229,8 +233,11 @@ export async function syncGhlContact(event: LoadedEvent): Promise<void> {
       name: `${firstName} ${lastName}`.trim(),
     });
     if (
-      incomingRev === linked.data?.last_jobber_revision ||
-      incomingRev === linked.data?.last_ghl_revision
+      shouldSkipInboundRevision({
+        incomingRev,
+        lastJobberRevision: linked.data?.last_jobber_revision as string | null,
+        lastGhlRevision: linked.data?.last_ghl_revision as string | null,
+      })
     ) {
       return;
     }

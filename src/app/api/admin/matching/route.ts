@@ -49,6 +49,10 @@ export async function GET() {
       acceptVerifiedRequires: "email_and_phone_unique plus explicit admin accept",
       canAcceptVerifiedLinkDemo: canAcceptVerifiedLink("email_and_phone_unique"),
       batchB: "not applied",
+      labels: {
+        legacyBatchB: "email_only + name_aligned (cannot UI-accept)",
+        currentAcceptable: "email_and_phone_unique after explicit confirm",
+      },
     },
     verified: verified.slice(0, 120),
     pending,

@@ -1,6 +1,7 @@
 import { getAdminSession } from "@/lib/auth/session";
 import { getSchedulingPolicy } from "@/lib/config/scheduling-policy";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
+import { planBookingAdminPost } from "@/lib/sync/booking-admin";
 
 export async function GET() {
   const session = await getAdminSession();
@@ -34,18 +35,20 @@ export async function POST(request: Request) {
     requestedStartAt?: string;
     confirm?: boolean;
     confirmVisit?: boolean;
+    decline?: boolean;
   };
-  if (body.confirmVisit) {
+  const plan = planBookingAdminPost(body);
+  if (plan.status !== 200) {
     return Response.json(
       {
-        error: "approval_required",
-        message: "Confirming a Jobber visit requires BOOKING_SYNC_ENABLED and explicit operator approval.",
+        error: plan.error,
+        message:
+          plan.status === 403
+            ? "Confirming a Jobber visit requires BOOKING_SYNC_ENABLED and explicit operator approval."
+            : plan.error,
       },
-      { status: 403 }
+      { status: plan.status }
     );
-  }
-  if (!body.ghlAppointmentId || body.confirm !== true) {
-    return Response.json({ error: "ghlAppointmentId and confirm=true required" }, { status: 400 });
   }
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ error: "db unavailable" }, { status: 503 });
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
       {
         ghl_appointment_id: body.ghlAppointmentId,
         requested_start_at: body.requestedStartAt ?? null,
-        booking_state: "pending_jobber_confirmation",
+        booking_state: plan.booking_state,
       },
       { onConflict: "ghl_appointment_id" }
     )
