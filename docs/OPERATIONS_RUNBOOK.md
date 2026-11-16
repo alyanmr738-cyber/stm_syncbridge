@@ -61,6 +61,14 @@ HMAC `X-Jobber-Hmac-SHA256` over raw body. URL must match production exactly.
 
 CLIENT_CREATE and CLIENT_UPDATE were registered 2026-11-10 via `webhookEndpointCreate` to the production Jobber webhook URL.
 
-GHL: require `X-GHL-Signature` (Ed25519), legacy `X-WH-Signature` (RSA), or workflow `X-GHL-Webhook-Secret` / Bearer matching `GHL_WEBHOOK_SECRET`. Unsigned requests are rejected.
+GHL: require `X-GHL-Signature` (Ed25519, Marketplace OAuth apps only), legacy `X-WH-Signature` (RSA), or workflow `X-GHL-Webhook-Secret` / Bearer matching `GHL_WEBHOOK_SECRET`. Unsigned requests are rejected. Private Integration tokens do **not** emit Marketplace webhooks—use workflow Custom Webhook (see below).
+
+### GHL → SyncBridge contact updates (workflow, not Marketplace)
+
+1. Create draft workflow **`STM — SyncBridge Contact Updates`** (do not publish without operator approval).
+2. **Trigger:** Contact Changed — use filters on **Email** and/or **Phone** when possible; for **last name**-only staff edits, use Contact Changed **without** a field filter, then an **If/Else** on standard fields (Last Name / First Name changed).
+3. **Only action:** Custom Webhook **POST** `https://stmsyncbridge.vercel.app/api/webhooks/ghl`, Content-Type `application/json`, header `X-GHL-Webhook-Secret` (value from Vercel `GHL_WEBHOOK_SECRET` only; never commit).
+4. JSON body must include `locationId`, `contactId`, `type: ContactUpdate`, and a unique `syncEventKey` using supported picker variables (e.g. `{{contact.id}}` plus workflow run id if available in your UI). SyncBridge re-fetches the live contact; **loop suppression is revision-based in code**, not a permanent GHL custom-field filter.
+6. Keep **Z7** and **Workflow 4** draft; do not add SMS/email/tags/opportunity steps.
 
 Activity dead-letter rows: use Retry (admin session) → `POST /api/admin/queue/retry`.

@@ -200,10 +200,11 @@ export async function syncGhlContact(event: LoadedEvent): Promise<ProcessOutcome
   const ghlId = String(payload.contactId ?? payload.id ?? event.providerEntityId ?? "");
   if (!ghlId || ghlId === "unknown") return "no_change";
   const live = await getGhlContact(ghlId);
-  const email = normalizeEmail(String(payload.email ?? live?.email ?? ""));
-  const phone = normalizePhone(String(payload.phone ?? live?.phone ?? ""));
-  const firstName = String(payload.firstName ?? payload.first_name ?? live?.firstName ?? "");
-  const lastName = String(payload.lastName ?? payload.last_name ?? live?.lastName ?? "");
+  if (!live?.id) return "no_change";
+  const email = normalizeEmail(live.email ?? String(payload.email ?? ""));
+  const phone = normalizePhone(live.phone ?? String(payload.phone ?? ""));
+  const firstName = String(live.firstName ?? payload.firstName ?? payload.first_name ?? "");
+  const lastName = String(live.lastName ?? payload.lastName ?? payload.last_name ?? "");
 
   const decision = await matchCustomer({ ghlContactId: ghlId, email, phone });
   if (decision.kind === "ambiguous") {
