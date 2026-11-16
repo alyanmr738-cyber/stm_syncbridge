@@ -1,13 +1,27 @@
+export function collapseRepeatedName(value: string): string {
+  const t = value.replace(/\s+/g, " ").trim();
+  const parts = t.split(" ").filter(Boolean);
+  if (parts.length >= 2 && parts.length % 2 === 0) {
+    const half = parts.length / 2;
+    const a = parts.slice(0, half).join(" ");
+    const b = parts.slice(half).join(" ");
+    if (a.toLowerCase() === b.toLowerCase()) return a;
+  }
+  return t;
+}
+
 export function displayName(
   parts: Array<string | null | undefined>,
   fallback = "Name unavailable"
 ): string {
-  const s = parts
-    .map((p) => String(p ?? "").trim())
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const s = collapseRepeatedName(
+    parts
+      .map((p) => String(p ?? "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
   return s || fallback;
 }
 

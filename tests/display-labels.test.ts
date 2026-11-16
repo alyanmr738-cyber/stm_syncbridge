@@ -13,6 +13,8 @@ describe("admin display labels", () => {
   it("falls back when names are missing", () => {
     expect(displayName([null, "", "  "], "Name unavailable")).toBe("Name unavailable");
     expect(displayName(["Evan", "Test"])).toBe("Evan Test");
+    expect(displayName(["Dominique Tollis Dominique Tollis"])).toBe("Dominique Tollis");
+    expect(displayName(["Dominique Tollis", "Dominique Tollis"])).toBe("Dominique Tollis");
   });
 
   it("keeps duplicate names distinguishable only via caller IDs, not invention", () => {
