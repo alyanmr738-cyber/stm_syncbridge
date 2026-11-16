@@ -11,6 +11,7 @@ function statusBadge(status: CustomerRowView["relationshipStatus"]) {
     pending: "Pending",
     rejected: "Rejected",
     conflicted: "Conflicted",
+    stale: "Stale",
   };
   return map[status];
 }
@@ -50,8 +51,9 @@ export function CustomersBoard({ rows }: { rows: CustomerRowView[] }) {
             </td>
             <td className="py-3 pr-3">{c.jobCount}</td>
             <td className="py-3 text-[11px] text-[#657683]">
-              <div>{c.lastAttempt}</div>
-              <div className="mt-1">{c.lastProviderWrite}</div>
+              <div>Attempt: {c.lastAttempt}</div>
+              <div className="mt-1">GHL write: {c.lastProviderWrite}</div>
+              <div className="mt-1">Outcome: {c.lastProcessingOutcome}</div>
             </td>
           </tr>
         ),
@@ -64,7 +66,7 @@ export function CustomersBoard({ rows }: { rows: CustomerRowView[] }) {
               <th>Relationship</th>
               <th>Matching evidence</th>
               <th>Jobs</th>
-              <th>Last attempt</th>
+              <th>Sync evidence</th>
             </tr>
           </thead>
           <tbody>{filtered.map((r) => r.node)}</tbody>
@@ -114,7 +116,12 @@ export function JobsBoard({ rows }: { rows: JobRowView[] }) {
               {j.opportunityLinkStatus === "none" ? (
                 <span className="text-[#8a5a12]">No linked GHL opportunity</span>
               ) : (
-                j.opportunityTitle
+                <>
+                  <div>{j.opportunityTitle}</div>
+                  <div className="mt-1 text-[11px] text-[#657683]">
+                    Stage: {j.opportunityStageName}
+                  </div>
+                </>
               )}
               <IdDetails label="GHL opportunity ID" value={j.ghlOpportunityId} />
             </td>

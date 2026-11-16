@@ -19,6 +19,7 @@ import {
   providerWriteOccurred,
   type ProcessOutcome,
 } from "@/lib/display/process-outcome";
+import { resolveGhlStageName } from "@/lib/ghl/pipeline-stages";
 import { isOperationalJobStatus } from "@/lib/sync/job-opp-candidates";
 
 export type CustomerRowView = {
@@ -27,7 +28,7 @@ export type CustomerRowView = {
   ghlContactId: string | null;
   verified: boolean;
   matchMethod: string;
-  relationshipStatus: "verified" | "pending" | "rejected" | "conflicted";
+  relationshipStatus: "verified" | "pending" | "rejected" | "conflicted" | "stale";
   jobberName: string;
   ghlName: string;
   namesDiffer: boolean;
@@ -38,6 +39,7 @@ export type CustomerRowView = {
   jobCount: number;
   lastProviderWrite: string;
   lastAttempt: string;
+  lastProcessingOutcome: string;
   blocker: string | null;
 };
 
@@ -54,6 +56,7 @@ export type JobRowView = {
   customerLinkStatus: "verified" | "unverified" | "none";
   opportunityTitle: string;
   opportunityLinkStatus: "linked" | "none";
+  opportunityStageName: string;
   statusLabel: string;
   missingOpportunity: boolean;
   lastJobStatus: string | null;
@@ -110,8 +113,16 @@ export async function enrichCustomers(
   }[],
   extras?: {
     jobCounts?: Map<string, number>;
-    conflictedIds?: Set<string>;
-    lastAttempts?: Map<string, string>;
+    conflictedCustomerLinkIds?: Set<string>;
+    syncEvidence?: Map<
+      string,
+      {
+        lastAttemptLabel: string;
+        lastProviderWriteLabel: string;
+        lastOutcomeLabel: string;
+        latestBlocker: string | null;
+      }
+    >;
   }
 ): Promise<CustomerRowView[]> {
   const labels = await hydrateLabels(keysForCustomers(rows));
@@ -139,18 +150,22 @@ export async function enrichCustomers(
       fromJobberRev.phone ||
       fromGhlRev.phone;
     const rejected = /reject/i.test(r.match_method ?? "");
-    const conflicted = extras?.conflictedIds?.has(r.id) === true;
+    const conflicted = extras?.conflictedCustomerLinkIds?.has(r.id) === true;
+    const jobberCheckFailed =
+      Boolean(r.jobber_client_id) && jobberLbl != null && jobberLbl.lookup_ok === false;
+    const ghlCheckFailed =
+      Boolean(r.ghl_contact_id) && ghlLbl != null && ghlLbl.lookup_ok === false;
+    const identityStale = jobberCheckFailed || ghlCheckFailed;
     const relationshipStatus: CustomerRowView["relationshipStatus"] = conflicted
       ? "conflicted"
-      : rejected
-        ? "rejected"
-        : r.verified
-          ? "verified"
-          : "pending";
-    const lastAttempt = extras?.lastAttempts?.get(r.jobber_client_id ?? "") ??
-      extras?.lastAttempts?.get(r.ghl_contact_id ?? "") ??
-      r.last_synced_at ??
-      null;
+      : identityStale
+        ? "stale"
+        : rejected
+          ? "rejected"
+          : r.verified
+            ? "verified"
+            : "pending";
+    const evidence = extras?.syncEvidence?.get(r.id);
     return {
       id: r.id,
       jobberClientId: r.jobber_client_id ?? null,
@@ -168,14 +183,18 @@ export async function enrichCustomers(
         ? `Last local link update ${formatAdminTimestamp(r.last_synced_at)} (not proof of a provider write)`
         : "No local link update recorded",
       jobCount: extras?.jobCounts?.get(r.id) ?? 0,
-      lastProviderWrite: "Write outcome not recorded unless a later event says so",
-      lastAttempt: lastAttempt ? formatAdminTimestamp(lastAttempt) : "—",
+      lastProviderWrite: evidence?.lastProviderWriteLabel ?? "Write outcome not recorded",
+      lastAttempt: evidence?.lastAttemptLabel ?? "—",
+      lastProcessingOutcome: evidence?.lastOutcomeLabel ?? "—",
       blocker:
-        relationshipStatus === "pending"
-          ? "Unverified identity — GHL writes are blocked"
-          : relationshipStatus === "conflicted"
-            ? "Open identity conflict"
-            : null,
+        evidence?.latestBlocker ??
+        (relationshipStatus === "stale"
+          ? "Provider identity check failed — relationship may be broken"
+          : relationshipStatus === "pending"
+            ? "Unverified identity — GHL writes are blocked"
+            : relationshipStatus === "conflicted"
+              ? "Open identity conflict"
+              : null),
     };
   });
 }
@@ -189,8 +208,10 @@ export async function enrichJobs(
     last_job_status?: string | null;
     last_synced_at?: string | null;
   }[],
-  customers: CustomerRowView[]
+  customers: CustomerRowView[],
+  opts?: { stageNames?: Map<string, string> }
 ): Promise<JobRowView[]> {
+  const stageNames = opts?.stageNames ?? new Map<string, string>();
   const keys: LabelKey[] = [];
   for (const r of rows) {
     if (r.jobber_job_id) keys.push({ provider: "jobber", entity_type: "job", entity_id: r.jobber_job_id });
@@ -273,6 +294,10 @@ export async function enrichJobs(
         ? displayName([opp?.title], "Opportunity title not available locally")
         : "No linked GHL opportunity",
       opportunityLinkStatus: r.ghl_opportunity_id ? "linked" : "none",
+      opportunityStageName: resolveGhlStageName(
+        opp?.extra.pipelineStageId as string | undefined,
+        stageNames
+      ),
       statusLabel: formatJobStatus(r.last_job_status),
       missingOpportunity: !r.ghl_opportunity_id,
       lastJobStatus: r.last_job_status ?? null,
@@ -410,11 +435,3 @@ export async function enrichEvents(
   });
 }
 
-export function jobCountByCustomer(jobs: JobRowView[]): Map<string, number> {
-  const m = new Map<string, number>();
-  for (const j of jobs) {
-    if (!j.customerLinkId) continue;
-    m.set(j.customerLinkId, (m.get(j.customerLinkId) ?? 0) + 1);
-  }
-  return m;
-}

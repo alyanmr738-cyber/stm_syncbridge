@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RetryButton } from "@/components/admin/retry-button";
 import { IdDetails } from "@/components/admin/id-details";
 import { SearchableTable } from "@/components/admin/searchable-table";
@@ -49,8 +49,21 @@ const FILTERS: { id: string; label: string; match: (r: ActivityRow) => boolean }
   },
 ];
 
-export function ActivityBoard({ rows }: { rows: ActivityRow[] }) {
-  const [filter, setFilter] = useState("all");
+const ALLOWED_FILTERS = new Set(FILTERS.map((f) => f.id));
+
+export function ActivityBoard({
+  rows,
+  initialFilter,
+}: {
+  rows: ActivityRow[];
+  initialFilter?: string;
+}) {
+  const [filter, setFilter] = useState(() =>
+    initialFilter && ALLOWED_FILTERS.has(initialFilter) ? initialFilter : "all"
+  );
+  useEffect(() => {
+    if (initialFilter && ALLOWED_FILTERS.has(initialFilter)) setFilter(initialFilter);
+  }, [initialFilter]);
   const visible = useMemo(
     () => rows.filter(FILTERS.find((f) => f.id === filter)?.match ?? (() => true)),
     [rows, filter]

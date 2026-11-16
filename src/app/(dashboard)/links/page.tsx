@@ -3,11 +3,12 @@ import { AdminShell, Panel } from "@/components/admin/shell";
 import { CustomersBoard, FinanceBoard, JobsBoard } from "@/components/admin/links-board";
 import { listConflicts, listFinance, listLinks } from "@/lib/db/admin-lists";
 import {
-  enrichCustomers,
-  enrichFinance,
-  enrichJobs,
-  jobCountByCustomer,
-} from "@/lib/display/enrich";
+  customerLinksWithOpenConflicts,
+  jobCountByCustomerLink,
+  loadCustomerSyncEvidence,
+} from "@/lib/display/customer-ops";
+import { enrichCustomers, enrichFinance, enrichJobs } from "@/lib/display/enrich";
+import { getGhlPipelineStageMap } from "@/lib/ghl/pipeline-stages";
 
 export default async function LinksPage({
   searchParams,
@@ -17,23 +18,29 @@ export default async function LinksPage({
   const { filter } = await searchParams;
   const { customers, jobs } = await listLinks();
   const { quotes, invoices } = await listFinance();
-  const conflicts = await listConflicts();
-  const conflictedIds = new Set(
-    conflicts
-      .filter((c) => c.state === "open" || !c.state)
-      .map((c) => String(c.source_entity_id ?? ""))
-  );
-  const customerViews = await enrichCustomers(customers, { conflictedIds });
-  const jobViewsAll = await enrichJobs(jobs, customerViews);
+  const [conflicts, stageNames, syncEvidence] = await Promise.all([
+    listConflicts(),
+    getGhlPipelineStageMap(),
+    loadCustomerSyncEvidence(customers),
+  ]);
+  const conflictedCustomerLinkIds = customerLinksWithOpenConflicts(conflicts, customers);
+  const customerViews = await enrichCustomers(customers, {
+    conflictedCustomerLinkIds,
+    syncEvidence,
+  });
+  const jobViewsAll = await enrichJobs(jobs, customerViews, { stageNames });
+  const jobCounts = jobCountByCustomerLink(customers, jobViewsAll);
   const customerViewsCounted = customerViews.map((c) => ({
     ...c,
-    jobCount: jobCountByCustomer(jobViewsAll).get(c.id) ?? c.jobCount,
+    jobCount: jobCounts.get(c.id) ?? 0,
   }));
   const quoteViews = await enrichFinance(quotes, "quote", customerViewsCounted);
   const invoiceViews = await enrichFinance(invoices, "invoice", customerViewsCounted);
 
   const verified = customerViewsCounted.filter((c) => c.relationshipStatus === "verified");
-  const unverified = customerViewsCounted.filter((c) => c.relationshipStatus !== "verified");
+  const unverified = customerViewsCounted.filter(
+    (c) => c.relationshipStatus !== "verified"
+  );
   let jobViews = jobViewsAll;
   if (filter === "missing_ghl") jobViews = jobViewsAll.filter((j) => j.opportunityLinkStatus === "none");
   if (filter === "unverified") jobViews = jobViewsAll.filter((j) => j.customerLinkStatus !== "verified");

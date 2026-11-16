@@ -5,6 +5,7 @@ import { IdDetails } from "@/components/admin/id-details";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { listLinks } from "@/lib/db/admin-lists";
 import { enrichCustomers, enrichEvents, enrichJobs } from "@/lib/display/enrich";
+import { getGhlPipelineStageMap } from "@/lib/ghl/pipeline-stages";
 import { listRecentEvents } from "@/services/events/inbox";
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,8 +21,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     .maybeSingle();
   if (!row) notFound();
   const { customers } = await listLinks();
+  const stageNames = await getGhlPipelineStageMap();
   const customerViews = await enrichCustomers(customers);
-  const [job] = await enrichJobs([row], customerViews);
+  const [job] = await enrichJobs([row], customerViews, { stageNames });
   if (!job) notFound();
   const { data: visits } = await supabase
     .from("appointment_links")
@@ -68,7 +70,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <Panel heading="GHL opportunity">
           <p className="text-sm">{job.opportunityTitle}</p>
           <p className="text-xs text-[#657683]">
-            {job.opportunityLinkStatus === "linked" ? "Linked" : "No linked opportunity"}
+            {job.opportunityLinkStatus === "linked"
+              ? `Linked · stage ${job.opportunityStageName}`
+              : "No linked opportunity"}
           </p>
           <IdDetails label="GHL opportunity ID" value={job.ghlOpportunityId} />
         </Panel>

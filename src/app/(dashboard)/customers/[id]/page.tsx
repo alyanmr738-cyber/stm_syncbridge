@@ -4,7 +4,13 @@ import { AdminShell, Panel } from "@/components/admin/shell";
 import { IdDetails } from "@/components/admin/id-details";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { listFinance } from "@/lib/db/admin-lists";
+import { listConflicts } from "@/lib/db/admin-lists";
+import {
+  customerLinksWithOpenConflicts,
+  loadCustomerSyncEvidence,
+} from "@/lib/display/customer-ops";
 import { enrichCustomers, enrichEvents, enrichFinance, enrichJobs } from "@/lib/display/enrich";
+import { getGhlPipelineStageMap } from "@/lib/ghl/pipeline-stages";
 import { listRecentEvents } from "@/services/events/inbox";
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +25,17 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     .eq("id", id)
     .maybeSingle();
   if (!row) notFound();
-  const [views] = [await enrichCustomers([row])];
+  const [conflicts, stageNames, syncEvidence] = await Promise.all([
+    listConflicts(),
+    getGhlPipelineStageMap(),
+    loadCustomerSyncEvidence([row]),
+  ]);
+  const [views] = [
+    await enrichCustomers([row], {
+      conflictedCustomerLinkIds: customerLinksWithOpenConflicts(conflicts, [row]),
+      syncEvidence,
+    }),
+  ];
   const customer = views[0]!;
   const { data: allJobs } = await supabase
     .from("job_links")
@@ -28,8 +44,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     )
     .limit(200);
   const jobs = allJobs ?? [];
-  const jobViews = (await enrichJobs(jobs, views)).filter(
-    (j) => j.customerLinkId === id || j.jobberClientId === customer.jobberClientId
+  const jobViews = (await enrichJobs(jobs, views, { stageNames })).filter(
+    (j) => j.jobberClientId === customer.jobberClientId
   );
   const jobIds = jobViews.map((j) => j.id);
   const { data: visits } = jobIds.length
@@ -86,6 +102,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           </p>
           <IdDetails label="Jobber client ID" value={customer.jobberClientId} />
           <IdDetails label="GHL contact ID" value={customer.ghlContactId} />
+        </Panel>
+        <Panel heading="Synchronization evidence">
+          <ul className="text-xs text-[#657683]">
+            <li>Last attempt: {customer.lastAttempt}</li>
+            <li>Last confirmed GHL provider write: {customer.lastProviderWrite}</li>
+            <li>Last processing outcome: {customer.lastProcessingOutcome}</li>
+            <li>Blocker: {customer.blocker ?? "—"}</li>
+          </ul>
         </Panel>
         <Panel heading={`Jobs (${jobViews.length})`}>
           {jobViews.length === 0 ? (

@@ -22,7 +22,12 @@ import {
   enrichFinance,
   enrichJobs,
 } from "@/lib/display/enrich";
+import {
+  customerLinksWithOpenConflicts,
+  loadCustomerSyncEvidence,
+} from "@/lib/display/customer-ops";
 import { operationalStats } from "@/lib/display/operational-stats";
+import { getGhlPipelineStageMap } from "@/lib/ghl/pipeline-stages";
 import { listRecentEvents } from "@/services/events/inbox";
 
 export default async function OverviewPage() {
@@ -39,8 +44,14 @@ export default async function OverviewPage() {
     listConflicts(),
   ]);
   const gatesOn = Object.values(gates).filter(Boolean).length;
-  const customers = await enrichCustomers(links.customers);
-  const jobs = await enrichJobs(links.jobs, customers);
+  const stageNames = await getGhlPipelineStageMap();
+  const syncEvidence = await loadCustomerSyncEvidence(links.customers);
+  const conflictedCustomerLinkIds = customerLinksWithOpenConflicts(conflicts, links.customers);
+  const customers = await enrichCustomers(links.customers, {
+    conflictedCustomerLinkIds,
+    syncEvidence,
+  });
+  const jobs = await enrichJobs(links.jobs, customers, { stageNames });
   const quotes = await enrichFinance(finance.quotes, "quote", customers);
   const invoices = await enrichFinance(finance.invoices, "invoice", customers);
   const eventViews = await enrichEvents(events, customers, jobs);
@@ -118,7 +129,7 @@ export default async function OverviewPage() {
         <Link className="underline" href="/links?filter=unverified">
           Unverified customer
         </Link>
-        <Link className="underline" href="/activity">
+        <Link className="underline" href="/activity?filter=errors">
           Sync failures
         </Link>
       </p>

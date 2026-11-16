@@ -88,6 +88,7 @@ describe("job three-state customer resolution", () => {
           jobCount: 0,
           lastProviderWrite: "",
           lastAttempt: "—",
+          lastProcessingOutcome: "—",
           blocker: null,
         },
       ]
