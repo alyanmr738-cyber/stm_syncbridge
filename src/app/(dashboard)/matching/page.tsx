@@ -49,12 +49,12 @@ export default function MatchingPage() {
   const [msg, setMsg] = useState("");
 
   async function load() {
-    const [m, j] = await Promise.all([
-      fetch("/api/admin/matching").then((r) => r.json()),
-      fetch("/api/admin/jobs/candidates").then((r) => r.json()),
-    ]);
+    const m = await fetch("/api/admin/matching").then((r) => r.json());
     setData(m);
-    setJobs(j);
+    fetch("/api/admin/jobs/candidates")
+      .then((r) => r.json())
+      .then((j) => setJobs(j))
+      .catch(() => setJobs({ error: "candidates unavailable" }));
   }
 
   useEffect(() => {

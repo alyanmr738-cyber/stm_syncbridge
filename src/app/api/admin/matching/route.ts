@@ -35,18 +35,32 @@ export async function GET() {
     .limit(200);
 
   const rows = customers ?? [];
-  const views = await enrichCustomers(rows);
+  const views = await enrichCustomers(rows).catch(() =>
+    rows.map((r) => ({
+      id: r.id as string,
+      jobberClientId: (r.jobber_client_id as string) ?? null,
+      ghlContactId: (r.ghl_contact_id as string) ?? null,
+      verified: r.verified === true,
+      matchMethod: String(r.match_method ?? ""),
+      jobberName: "Jobber customer (name unavailable)",
+      ghlName: "GHL contact (name unavailable)",
+      namesDiffer: false,
+      maskedEmail: null,
+      maskedPhone: null,
+      lastSyncedAt: (r.last_synced_at as string) ?? null,
+    }))
+  );
   const verified = views.filter((r) => r.verified);
   const pending = views.filter((r) => !r.verified);
   const proposalRows = proposals ?? [];
   const labels = await hydrateLabels(
-    proposalRows.flatMap((p) => {
+    proposalRows.slice(0, 40).flatMap((p) => {
       const keys = [];
       if (p.jobber_id) keys.push({ provider: "jobber" as const, entity_type: "client" as const, entity_id: String(p.jobber_id) });
       if (p.ghl_id) keys.push({ provider: "ghl" as const, entity_type: "contact" as const, entity_id: String(p.ghl_id) });
       return keys;
     })
-  );
+  ).catch(() => new Map());
   const proposalsView = proposalRows.map((p) => {
     const j = labelOf(labels, "jobber", "client", p.jobber_id as string);
     const g = labelOf(labels, "ghl", "contact", p.ghl_id as string);
