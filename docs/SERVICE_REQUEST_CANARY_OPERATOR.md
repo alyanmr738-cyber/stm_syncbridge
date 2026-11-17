@@ -82,12 +82,18 @@ All other contacts/requests: `local_state_only` or `suppressed_feature` — zero
 1. Inbound: `provider_event_key` from `syncEventKey` / workflow execution id.
 2. Business: `job_links.source_booking_key` = `serviceRequestId` — second delivery returns `no_change` if `jobber_job_id` already set.
 
-## Safe cleanup (after test)
+## Recovery (no blind deletes)
 
-1. Turn `CREATION_CANARY_ENABLED=false` and close the window (`NOT_AFTER` in the past).
-2. In Jobber: archive/delete **only** the canary client/job ids recorded in `sync_conflicts` details for `entity_type=service_request` (or ledger env vars).
-3. In Supabase: delete `job_links` row where `source_booking_key` = test request id; delete test `customer_links` row **only** if created by `match_method=service_request_canary_create`.
-4. Do **not** touch Evan fixture, Batch B links, or quarantined OAuth events.
+1. Set `CREATION_CANARY_ENABLED=false` (canary off independent of reconciliation).
+2. Inspect `creation_canary_ledger` for `service_request_key` and states `reconciliation_required` / `creating`.
+3. Run recovery planner (`planCanaryRecovery` / admin UI when wired): reconcile against Jobber **search** before any retry.
+4. **Preserve** `jobber_client_id` / `jobber_job_id` on the ledger; resume job step only when client id is confirmed.
+5. **Do not** delete `customer_links` / `job_links` or archive Jobber records without explicit operator approval.
+6. See `docs/JOBBER_CREATION_SCHEMA.md` if job create fails for missing `propertyId`.
+
+## Safe cleanup (only after explicit approval)
+
+Archive Jobber entities only after confirming ids from ledger + Jobber UI match. Then remove test `job_links` / optional `customer_links` (`match_method=service_request_canary_create`). Evan fixture and quarantined OAuth events stay untouched.
 
 ## Rollback
 

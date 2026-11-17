@@ -1,0 +1,730 @@
+[
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8zOTgwNDAwOQ==",
+    "ghl_contact_id": "0lBznWX1fnkZ71vPydTZ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC80MzQ1NzE1MA==",
+    "ghl_contact_id": "kee5zx3JI8HerJ4s4CJN"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC81MjgwODc3Mg==",
+    "ghl_contact_id": "tIhawaniFSXYlInAEW2t"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC82OTMxOTYwNg==",
+    "ghl_contact_id": "XnqHWDODxClVZ51wKict"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC82OTczMjg1Nw==",
+    "ghl_contact_id": "8mDDTLYhIgJFrVCipUCZ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC83MDI3MTY0Mw==",
+    "ghl_contact_id": "48MqjlHH2MwDLXsB5B8M"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC83MzY4MTcyNQ==",
+    "ghl_contact_id": "ucn1fyDBQj7M7MG9FZnF"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC84NDYyNjMzNw==",
+    "ghl_contact_id": "tzIQ4hsd8T66ifoJrKtQ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC84OTcyMzEzNQ==",
+    "ghl_contact_id": "YsBktXtZcfN56KqbFlQI"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC85MDQ0NTQ1MA==",
+    "ghl_contact_id": "svfVXP2STpJrebZZrwQJ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC85NjE1MzMyMA==",
+    "ghl_contact_id": "GaaJ5hgXvlDtCaX9f4SZ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMDU1MDU4ODY=",
+    "ghl_contact_id": "ZCa3twz7042xRT4JzQ4P"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMDYyNDIzNDU=",
+    "ghl_contact_id": "34MunGUwwJkCbqb6197S"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMDk3NjY2OTY=",
+    "ghl_contact_id": "etyBTLx1zb24Whut7s2q"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMTE2MDkzNzY=",
+    "ghl_contact_id": "lWfCI9WboU8P0Iw9TsaP"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMTg1MTcxMjc=",
+    "ghl_contact_id": "grAzFfOjhnLj8TyeCIwK"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMTkwNjEwNTA=",
+    "ghl_contact_id": "OFLJeJ7k9wvEwqtNnwXI"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMjEwODQwMjM=",
+    "ghl_contact_id": "cm7wOExvef9KKCa7sQMX"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDU4MDM2NjM=",
+    "ghl_contact_id": "7KMtp7rD5Qi8DEcKQnRs"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDY1MjM1NTI=",
+    "ghl_contact_id": "OGnMw8Yb0KATbomvt3lY"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDY3Mjc1ODA=",
+    "ghl_contact_id": "Ki8lLZPvgzWodh9R0llH"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDcyMTc0MDA=",
+    "ghl_contact_id": "cJ2IPpAyKZaMgw0ZOYNs"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDczNTg1OTk=",
+    "ghl_contact_id": "3KPzTLL4l1Jpb8ywXzOi"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDc0MDA4OTU=",
+    "ghl_contact_id": "XBLvsZlB2cwIYYTDwAnI"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDc1NjA1ODk=",
+    "ghl_contact_id": "hOCRkbqPJAyH6shp50xh"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDc2OTU1NTM=",
+    "ghl_contact_id": "CHE7nUflX4qu1PYS8XmF"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDc3NTc4OTc=",
+    "ghl_contact_id": "aJh5PUU4Ec8j4ZRYcyiV"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDgyMjAwMjQ=",
+    "ghl_contact_id": "b9o396d5wNFR7NyntDrH"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDkzMTM2MjI=",
+    "ghl_contact_id": "P5oa4TncNKgFCJIEiuhx"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTA1ODExODE=",
+    "ghl_contact_id": "yJLSAGhkpyeEJEIIcHLb"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTA3MTk0MzU=",
+    "ghl_contact_id": "5p41mMCLVpM7u0t0HzjS"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTEwNjQ2NTE=",
+    "ghl_contact_id": "4Cl60KEz1uPyrjGZr4Sk"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTExMjU2NDU=",
+    "ghl_contact_id": "57QvHDGEfm9NP8G8NxRi"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTExOTczODc=",
+    "ghl_contact_id": "eyJaOlAJioUP4ozeIioE"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTEyMjY1ODM=",
+    "ghl_contact_id": "2AEwHT3yQM80YeZKB9qV"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTE2NDA1ODA=",
+    "ghl_contact_id": "oXqhT8YD3dVQb1HCLcLx"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTE2NjE1MzY=",
+    "ghl_contact_id": "HXIAGcJwyhgmRWM1KVav"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTI2NjE3MTQ=",
+    "ghl_contact_id": "B5Rf3e9YgxqOiWUzbfAU"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTMxODgzOTM=",
+    "ghl_contact_id": "eNOaPvi0faOKLUR3uxel"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTQxNzgyMTY=",
+    "ghl_contact_id": "iPtYpn9qSBFn35goOTuJ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTQ3NjY3NzQ=",
+    "ghl_contact_id": "PrDJh5VqUbMiHym2Kord"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTQ5MTkwMTE=",
+    "ghl_contact_id": "gao3c1ESMTWj8YXIgTHn"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTQ5OTU4NDg=",
+    "ghl_contact_id": "WVCM4uao1blN9weYBtpw"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTUxMjY2ODM=",
+    "ghl_contact_id": "dc8JFuB3ANWWJv2xBOSe"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTU4NDk3OTg=",
+    "ghl_contact_id": "Y1MEne3eNmvDgG6bfRt0"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTU5NjU2ODY=",
+    "ghl_contact_id": "gVBTrnWtYcKwmUNMjhgo"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYwODE3Mjg=",
+    "ghl_contact_id": "EePGecgi6ud7NyveR2jF"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYxMDY0Mjc=",
+    "ghl_contact_id": "6cx6dPrL1BrmFo5D9IDo"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYyNDAzNjk=",
+    "ghl_contact_id": "vHPRgKXeWcelYeB086dO"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYzNzkyODI=",
+    "ghl_contact_id": "LoHtQQuCMSput3v3n6Lb"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY0NDA4MjQ=",
+    "ghl_contact_id": "sIlcehBrm1MnurGVmyvU"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2MDM3NDQ=",
+    "ghl_contact_id": "as6TjbA3neMBKQYcBtGm"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2MDY5Njk=",
+    "ghl_contact_id": "UB3jRJl0WuP2DGAQViwX"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2NTA0NDg=",
+    "ghl_contact_id": "h5u5Rhay9apPSXpq1rZj"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2ODU4MDc=",
+    "ghl_contact_id": "o2s10yLqPcEdk5fNESdU"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY3NTM3ODQ=",
+    "ghl_contact_id": "GXT537FVFqzdeLxbCpbX"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY3NTcyNTE=",
+    "ghl_contact_id": "IdxTX8oEoQPoyWLaK21p"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY5MDA0MTE=",
+    "ghl_contact_id": "wdMjfLaaB1lvbAM4Pn2P"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY5OTk3MTY=",
+    "ghl_contact_id": "DCevAyz7wGRewD7oLK31"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcwMTgwODE=",
+    "ghl_contact_id": "CtnLD4h0Y7k9kLxcLn83"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcwMjEyMzg=",
+    "ghl_contact_id": "EFRWF6Ryg9EFyosuiso1"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcxMzM1MTM=",
+    "ghl_contact_id": "WmYCeXf9b4CH64ipol8I"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcxMzUxNTc=",
+    "ghl_contact_id": "EJRWGipIwZ3UNeJ1RxPR"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcxNjk1MTY=",
+    "ghl_contact_id": "H4sG5lYIppncCknhH2z8"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTcxNzQyNzc=",
+    "ghl_contact_id": "6xQZVHmRSNxlcEAxeGoe"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTczOTQ1Njg=",
+    "ghl_contact_id": "qTGKceW3tp1SKK7xbriS"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc0MjY5MTg=",
+    "ghl_contact_id": "teP4snsjkjlwzYdS8V0j"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc0NjM3MzE=",
+    "ghl_contact_id": "LAcEarg8CwZSKiqAuqXu"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc1OTAwMDk=",
+    "ghl_contact_id": "P2Vh6B9AgXtzFTeJiX1A"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2MDI0MTc=",
+    "ghl_contact_id": "zbVL7hw7VUkWR9IeYe91"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2MzQyMjE=",
+    "ghl_contact_id": "fjtSvv0UlzdiZcuZyQU9"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2NjU0OTA=",
+    "ghl_contact_id": "rMpvGzAmVa1YVDDpbPUP"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2NzA0Njk=",
+    "ghl_contact_id": "c0nvzvQ3UaWGKXg9eljM"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2ODE5NjU=",
+    "ghl_contact_id": "Qz2VHh1UDEI8F4oh1lFo"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc2ODQ4MDQ=",
+    "ghl_contact_id": "MVPfiuM9q0Jtr1FjG4hU"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc3MTc4NDg=",
+    "ghl_contact_id": "xLK1C6sOM1GFGik5YYRE"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc4MDQ5NTE=",
+    "ghl_contact_id": "RThhoH8zqESY1wdtsvrJ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc5MTU1ODI=",
+    "ghl_contact_id": "SGxwELXnFsC5WcTewaRQ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgwNDE3NTI=",
+    "ghl_contact_id": "KC8Pcf5g4WnqOgaTn3tw"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgwOTU0MDU=",
+    "ghl_contact_id": "e8PhHZYgvfirM0s7PbuQ"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgxMDUwMTI=",
+    "ghl_contact_id": "7HyOAavxMZNoDy1ZfR0k"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgxMDYxNzU=",
+    "ghl_contact_id": "WFR9PGTlAZfrXNYvxhsR"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgxNTQzOTI=",
+    "ghl_contact_id": "uQ9jIpLs2NBCHwqRR1aH"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgyMzk2ODE=",
+    "ghl_contact_id": "OZqodZEkBRfkLXYR6WK8"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgyNDQ1MTI=",
+    "ghl_contact_id": "uqWaxU4lxhZwy1VJXKkV"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTgyNDQ1Mjk=",
+    "ghl_contact_id": "jFmm64EhGEii8aojK2gK"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTkwNTY4MjU=",
+    "ghl_contact_id": "vRgR27UVQUhQe37zLN15"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC81NzI5MjgzMA==",
+    "ghl_contact_id": "Bdb2fC1PMjPzvbRzQCzO"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xMzk2OTE5NDA=",
+    "ghl_contact_id": "l9ir6Mkbz1Lfr5daX6l1"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDY1ODE3MTI=",
+    "ghl_contact_id": "gULKXzNPTipv2beu3tXX"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDczNjA4MTE=",
+    "ghl_contact_id": "omSxfdYzk3lPpe8FWCkW"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNDk1MDA2Njg=",
+    "ghl_contact_id": "4zlB3Qe9PxHbNJLlfBeX"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYwNjc0MTY=",
+    "ghl_contact_id": "GJNLnjgPYtKgFRRZ9dqi"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYwODI4MDY=",
+    "ghl_contact_id": "BB9n8tXMKwpbNeI1rqIT"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYxOTM2ODE=",
+    "ghl_contact_id": "XrXwSBDbZAUHuBnXDlxs"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTYzMjU4MzI=",
+    "ghl_contact_id": "QFaerXOVItVKv1Y3su0M"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2NjQ1NDA=",
+    "ghl_contact_id": "WgzFGMqhHDviWL27GhA3"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2ODQwMzY=",
+    "ghl_contact_id": "Paw085Ex0bbEh14o0z3v"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTY2OTY1Mzg=",
+    "ghl_contact_id": "9O1jyKenYidaeutpCJOo"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc0OTk4NDg=",
+    "ghl_contact_id": "vsXMFWffvwlNU2YUkRqq"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc1NjMyMzg=",
+    "ghl_contact_id": "GD2NGNfTAZs3sp5BXHVT"
+  },
+  {
+    "action": "insert_customer_link",
+    "verified": true,
+    "match_method": "email_unique_name_aligned",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTc1NzE1NjM=",
+    "ghl_contact_id": "pri1OODpZNwHxFzYAAGp"
+  },
+  {
+    "action": "set_verified_false",
+    "id": "05fac55c-5bc8-4c1f-943c-3a33ffc1ab55",
+    "reason": "verified_but_jobber_missing",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTg5Nzg4MzY=",
+    "ghl_contact_id": "Oz6ZOxZUXGs48oAqKxE2"
+  },
+  {
+    "action": "set_verified_true",
+    "id": "34a4c267-a1a0-41ac-b708-d0f513d012c9",
+    "match_method": "email_and_phone_unique",
+    "jobber_client_id": "Z2lkOi8vSm9iYmVyL0NsaWVudC8xNTkyNDY3NjI=",
+    "ghl_contact_id": "Wz4QgocLVbzOq2CBUi0O"
+  }
+]

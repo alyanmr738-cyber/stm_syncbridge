@@ -3,8 +3,15 @@ import { getEnv } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
 import {
   CreationCanaryClosedError,
+  canaryLockOwner,
   creationCanaryAllowsProviderCreate,
 } from "@/lib/config/creation-canary";
+import {
+  getLedgerByRequestKey,
+  getOrCreateCanaryLedger,
+  reserveCanarySlot,
+} from "@/lib/sync/creation-ledger";
+import { planCanaryRecovery } from "@/lib/sync/creation-recovery";
 import { assertPilotWrite } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import {
@@ -766,6 +773,22 @@ export async function syncServiceRequest(event: LoadedEvent): Promise<ProcessOut
   const parsed = parseServiceRequestPayload(event.payload);
   if (!parsed) return "no_change";
 
+  const ledgerEarly = await getLedgerByRequestKey(parsed.serviceRequestKey);
+  if (ledgerEarly?.run_state === "completed" && ledgerEarly.jobber_job_id) {
+    return "no_change";
+  }
+  if (ledgerEarly?.run_state === "reconciliation_required") {
+    const recovery = await planCanaryRecovery(parsed.serviceRequestKey);
+    await openConflict({
+      eventId: event.id,
+      entityType: "service_request",
+      entityId: parsed.serviceRequestKey,
+      reason: "reconciliation_required",
+      details: { recovery: recovery.action },
+    });
+    return "blocked_unverified";
+  }
+
   const existingLink = await findJobLink({ bookingKey: parsed.serviceRequestKey });
   if (existingLink?.jobber_job_id) {
     return "no_change";
@@ -845,10 +868,32 @@ export async function syncServiceRequest(event: LoadedEvent): Promise<ProcessOut
   }
 
   let jobberClientId: string | undefined =
-    plan.action === "reuse_existing_client" ? plan.jobberClientId : undefined;
+    plan.action === "reuse_existing_client"
+      ? plan.jobberClientId
+      : ledgerEarly?.jobber_client_id ?? undefined;
+
+  const ledger =
+    (await getOrCreateCanaryLedger({
+      ghlContactId: parsed.contactId,
+      serviceRequestKey: parsed.serviceRequestKey,
+      syncEventId: event.id,
+    })) ?? ledgerEarly;
+  const lockOwner = canaryLockOwner();
+  const ledgerId = ledger?.id;
 
   try {
-    if (!jobberClientId && plan.action === "create_client_then_job" && canCreateClient) {
+    if (!jobberClientId && plan.action === "create_client_then_job" && canCreateClient && ledgerId) {
+      const reserved = await reserveCanarySlot({ kind: "client", ledgerId, owner: lockOwner });
+      if (!reserved) {
+        await persistServiceRequestAudit({
+          eventId: event.id,
+          contactId: parsed.contactId,
+          serviceRequestKey: parsed.serviceRequestKey,
+          plan,
+          bookingState: "pending_jobber_confirmation",
+        });
+        return "local_state_only";
+      }
       const contact = await getGhlContact(parsed.contactId);
       assertPilotWrite("ghl.service_request.create_client", {
         ghlContactId: parsed.contactId,
@@ -864,6 +909,8 @@ export async function syncServiceRequest(event: LoadedEvent): Promise<ProcessOut
           operation: "ghl.service_request.create_client",
           ghlContactId: parsed.contactId,
           serviceRequestKey: parsed.serviceRequestKey,
+          ledgerId,
+          lockOwner,
         },
       });
       await upsertCustomerLink({
@@ -885,21 +932,48 @@ export async function syncServiceRequest(event: LoadedEvent): Promise<ProcessOut
       return "local_state_only";
     }
 
-    let jobberJobId: string | undefined;
-    if (jobberWriteAllowed) {
+    let jobberJobId: string | undefined = ledger?.jobber_job_id ?? undefined;
+    if (jobberWriteAllowed && !jobberJobId && ledgerId) {
+      const reservedJob = await reserveCanarySlot({ kind: "job", ledgerId, owner: lockOwner });
+      if (!reservedJob) {
+        await persistServiceRequestAudit({
+          eventId: event.id,
+          contactId: parsed.contactId,
+          serviceRequestKey: parsed.serviceRequestKey,
+          plan,
+          jobberClientId,
+          bookingState: "pending_jobber_confirmation",
+        });
+        return "local_state_only";
+      }
       assertPilotWrite("ghl.service_request.create_job", {
         ghlContactId: parsed.contactId,
         jobberClientId,
         creatingJobberJob: true,
         creationCanaryRequestKey: parsed.serviceRequestKey,
       });
+      const clientRecord = await fetchJobberClient(jobberClientId);
+      const propertyId = clientRecord?.clientProperties?.nodes?.[0]?.id;
+      if (!propertyId) {
+        await openConflict({
+          eventId: event.id,
+          entityType: "service_request",
+          entityId: parsed.serviceRequestKey,
+          reason: "job_create_blocked_no_property",
+          details: { jobberClientId },
+        });
+        return "blocked_unverified";
+      }
       jobberJobId = await createJobberJob({
         clientId: jobberClientId,
+        propertyId,
         title: serviceRequestTitle(parsed),
         creationContext: {
           operation: "ghl.service_request.create_job",
           ghlContactId: parsed.contactId,
           serviceRequestKey: parsed.serviceRequestKey,
+          ledgerId,
+          lockOwner,
         },
       });
     }

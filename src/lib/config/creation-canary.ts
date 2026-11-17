@@ -1,5 +1,10 @@
 import { getEnv, parseIdAllowlist } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
+import {
+  canaryBudgetAvailable,
+  canaryEnvAllowsAttempt,
+  resetCreationLedgerForTests,
+} from "@/lib/sync/creation-ledger";
 
 export type CreationCanaryConfig = {
   enabled: boolean;
@@ -12,31 +17,8 @@ export type CreationCanaryConfig = {
   allowNewClient: boolean;
 };
 
-export type CreationCanaryLedger = {
-  clientsCreated: number;
-  jobsCreated: number;
-  lastClientId: string | null;
-  lastJobId: string | null;
-};
-
-let testLedger: CreationCanaryLedger = {
-  clientsCreated: 0,
-  jobsCreated: 0,
-  lastClientId: null,
-  lastJobId: null,
-};
-
 export function resetCreationCanaryLedgerForTests(): void {
-  testLedger = {
-    clientsCreated: 0,
-    jobsCreated: 0,
-    lastClientId: null,
-    lastJobId: null,
-  };
-}
-
-export function getCreationCanaryLedger(): CreationCanaryLedger {
-  return { ...testLedger };
+  resetCreationLedgerForTests();
 }
 
 export function getCreationCanaryConfig(): CreationCanaryConfig {
@@ -75,15 +57,16 @@ export function creationCanaryMatchesRequest(opts: {
   serviceRequestKey?: string | null;
 }): boolean {
   const cfg = getCreationCanaryConfig();
-  if (!cfg.enabled || !cfg.ghlContactId || cfg.serviceRequestKeys.length === 0) {
+  if (!cfg.enabled || !cfg.ghlContactId || cfg.serviceRequestKeys.length !== 1) {
     return false;
   }
   const contact = (opts.ghlContactId ?? "").trim();
   const key = (opts.serviceRequestKey ?? "").trim();
   if (contact !== cfg.ghlContactId) return false;
-  return cfg.serviceRequestKeys.includes(key);
+  return cfg.serviceRequestKeys[0] === key;
 }
 
+/** Sync pilot gate: env allowlist only; global budget checked async via ledger reserve. */
 export function creationCanaryAllowsProviderCreate(opts: {
   ghlContactId?: string | null;
   serviceRequestKey?: string | null;
@@ -91,33 +74,16 @@ export function creationCanaryAllowsProviderCreate(opts: {
   now?: Date;
 }): boolean {
   if (!creationCanaryWindowOpen(opts.now)) return false;
-  if (!creationCanaryMatchesRequest(opts)) return false;
-  const ledger = getCreationCanaryLedger();
-  const cfg = getCreationCanaryConfig();
-  if (opts.kind === "client") {
-    if (!cfg.allowNewClient) return false;
-    return ledger.clientsCreated < cfg.maxClients;
-  }
-  return ledger.jobsCreated < cfg.maxJobs;
+  return canaryEnvAllowsAttempt({
+    ghlContactId: opts.ghlContactId,
+    serviceRequestKey: opts.serviceRequestKey,
+    kind: opts.kind,
+  });
 }
 
-export function recordCreationCanaryWrite(opts: {
-  kind: "client" | "job";
-  providerId: string;
-}): void {
-  if (opts.kind === "client") {
-    testLedger = {
-      ...testLedger,
-      clientsCreated: testLedger.clientsCreated + 1,
-      lastClientId: opts.providerId,
-    };
-    return;
-  }
-  testLedger = {
-    ...testLedger,
-    jobsCreated: testLedger.jobsCreated + 1,
-    lastJobId: opts.providerId,
-  };
+export async function creationCanaryBudgetAllows(kind: "client" | "job"): Promise<boolean> {
+  if (!getCreationCanaryConfig().enabled) return false;
+  return canaryBudgetAvailable(kind);
 }
 
 export class CreationCanaryClosedError extends Error {
@@ -147,27 +113,41 @@ export function assertCreationCanaryWrite(opts: {
     throw new CreationCanaryClosedError(opts.operation, "contact or request not on allowlist");
   }
   if (!creationCanaryAllowsProviderCreate(opts)) {
-    throw new CreationCanaryClosedError(opts.operation, "canary budget exhausted or client create disabled");
+    throw new CreationCanaryClosedError(opts.operation, "canary not authorized for this create");
   }
 }
 
-/** Global ALLOW_RECORD_CREATION=true bypasses canary for integration tests only. */
-export function providerCreateGloballyAllowed(): boolean {
-  return getEnv().ALLOW_RECORD_CREATION === "true";
-}
-
-export function assertProviderCreateAllowed(opts: {
+/** Never bypass via ALLOW_RECORD_CREATION — canary-only provider creates. */
+export async function assertProviderCreateAllowed(opts: {
   operation: string;
   ghlContactId?: string | null;
   serviceRequestKey?: string | null;
   kind: "client" | "job";
-}): void {
-  if (providerCreateGloballyAllowed()) return;
+  ledgerId?: string;
+}): Promise<void> {
   assertCreationCanaryWrite(opts);
+  if (getEnv().ALLOW_RECORD_CREATION === "true" && !getCreationCanaryConfig().enabled) {
+    throw new CreationCanaryClosedError(
+      opts.operation,
+      "global ALLOW_RECORD_CREATION cannot authorize Jobber creates"
+    );
+  }
+  const budget = await creationCanaryBudgetAllows(opts.kind);
+  if (!budget && !opts.ledgerId) {
+    throw new CreationCanaryClosedError(opts.operation, "canary budget exhausted or slot taken");
+  }
 }
 
 export function isCreationCanaryGateError(
   e: unknown
 ): e is CreationCanaryClosedError | GateClosedError {
   return e instanceof CreationCanaryClosedError || e instanceof GateClosedError;
+}
+
+export function canaryLockOwner(): string {
+  return (
+    process.env.CREATION_CANARY_LOCK_OWNER ??
+    process.env.VERCEL_DEPLOYMENT_ID ??
+    `worker-${process.pid}`
+  );
 }

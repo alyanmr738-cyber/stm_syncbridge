@@ -25,14 +25,14 @@ export function parseGhlWebhookPayload(raw: Record<string, unknown>): ParsedGhlW
   const hasServiceKey = Boolean(
     raw.serviceRequestId ?? raw.serviceRequestKey ?? raw.requestId
   );
-  if ((/service/i.test(eventKind) || hasServiceKey) && contactId) {
+  if (hasServiceKey && contactId) {
+    eventKind = "ServiceRequest";
+  } else if (/^servicerequest$/i.test(eventKind) && contactId) {
     eventKind = "ServiceRequest";
   }
   if (!eventKind || eventKind === "unknown") {
     const trigger = String(raw.trigger ?? raw.triggerName ?? "").toLowerCase();
-    if (/service.?request|new.?lead|booking|appointment/.test(trigger)) {
-      eventKind = "ServiceRequest";
-    } else if (/contact/.test(trigger) || contactId) {
+    if (/contact/.test(trigger) || contactId) {
       eventKind = "ContactUpdate";
     } else {
       eventKind = "unknown";

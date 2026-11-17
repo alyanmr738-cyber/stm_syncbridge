@@ -1,7 +1,10 @@
+import { assertProviderCreateAllowed } from "@/lib/config/creation-canary";
 import {
-  assertProviderCreateAllowed,
-  recordCreationCanaryWrite,
-} from "@/lib/config/creation-canary";
+  completeCanarySlot,
+  markCanaryReconciliation,
+  markSlotCreating,
+  slotAllowsCreate,
+} from "@/lib/sync/creation-ledger";
 import { jobberGraphql } from "@/lib/jobber/graphql";
 
 export type JobberProperty = {
@@ -122,17 +125,36 @@ export async function createJobberClient(input: {
     operation: string;
     ghlContactId?: string;
     serviceRequestKey?: string;
+    ledgerId?: string;
+    lockOwner?: string;
   };
 }): Promise<string> {
   if (input.creationContext) {
-    assertProviderCreateAllowed({
+    await assertProviderCreateAllowed({
       operation: input.creationContext.operation,
       ghlContactId: input.creationContext.ghlContactId,
       serviceRequestKey: input.creationContext.serviceRequestKey,
       kind: "client",
+      ledgerId: input.creationContext.ledgerId,
     });
+    if (input.creationContext.ledgerId) {
+      const allowed = await slotAllowsCreate({
+        kind: "client",
+        ledgerId: input.creationContext.ledgerId,
+      });
+      if (!allowed) {
+        throw new Error("Creation canary client slot not reserved");
+      }
+      await markSlotCreating({
+        kind: "client",
+        ledgerId: input.creationContext.ledgerId,
+        owner: input.creationContext.lockOwner ?? "unknown",
+      });
+    }
   }
-  const data = await jobberGraphql<{
+  let data;
+  try {
+  data = await jobberGraphql<{
     clientCreate: { client: { id: string }; userErrors: { message: string }[] };
   }>(
     `mutation ClientCreate($input: ClientCreateInput!) {
@@ -150,43 +172,90 @@ export async function createJobberClient(input: {
       },
     }
   );
+  } catch (e) {
+    if (input.creationContext?.ledgerId) {
+      await markCanaryReconciliation({
+        kind: "client",
+        ledgerId: input.creationContext.ledgerId,
+        message: e instanceof Error ? e.message : "client mutation failed",
+      });
+    }
+    throw e;
+  }
   const err = data.clientCreate.userErrors?.[0];
-  if (err) throw new Error(err.message);
+  if (err) {
+    if (input.creationContext?.ledgerId) {
+      await markCanaryReconciliation({
+        kind: "client",
+        ledgerId: input.creationContext.ledgerId,
+        message: err.message,
+      });
+    }
+    throw new Error(err.message);
+  }
   const id = data.clientCreate.client.id;
-  recordCreationCanaryWrite({ kind: "client", providerId: id });
+  if (input.creationContext?.ledgerId) {
+    await completeCanarySlot({
+      kind: "client",
+      ledgerId: input.creationContext.ledgerId,
+      providerId: id,
+    });
+  }
   return id;
 }
 
 export async function createJobberJob(input: {
   clientId: string;
   title: string;
-  propertyId?: string;
+  propertyId: string;
   creationContext?: {
     operation: string;
     ghlContactId?: string;
     serviceRequestKey?: string;
+    ledgerId?: string;
+    lockOwner?: string;
   };
 }): Promise<string> {
   if (!isJobberEncodedId(input.clientId)) {
     throw new Error("Invalid Jobber client id");
   }
+  if (!isJobberEncodedId(input.propertyId)) {
+    throw new Error("JobCreateAttributes requires propertyId — no client-only job create in schema");
+  }
   if (input.creationContext) {
-    assertProviderCreateAllowed({
+    await assertProviderCreateAllowed({
       operation: input.creationContext.operation,
       ghlContactId: input.creationContext.ghlContactId,
       serviceRequestKey: input.creationContext.serviceRequestKey,
       kind: "job",
+      ledgerId: input.creationContext.ledgerId,
     });
+    if (input.creationContext.ledgerId) {
+      const allowed = await slotAllowsCreate({
+        kind: "job",
+        ledgerId: input.creationContext.ledgerId,
+      });
+      if (!allowed) {
+        throw new Error("Creation canary job slot not reserved");
+      }
+      await markSlotCreating({
+        kind: "job",
+        ledgerId: input.creationContext.ledgerId,
+        owner: input.creationContext.lockOwner ?? "unknown",
+      });
+    }
   }
   const body: Record<string, unknown> = {
-    clientId: input.clientId,
+    propertyId: input.propertyId,
     title: input.title,
+    trackingOrigin: "GHL_SYNC",
   };
-  if (input.propertyId) body.propertyId = input.propertyId;
-  const data = await jobberGraphql<{
+  let data;
+  try {
+  data = await jobberGraphql<{
     jobCreate: { job: { id: string }; userErrors: { message: string }[] };
   }>(
-    `mutation JobCreate($input: JobCreateInput!) {
+    `mutation JobCreate($input: JobCreateAttributes!) {
       jobCreate(input: $input) {
         job { id }
         userErrors { message }
@@ -194,10 +263,35 @@ export async function createJobberJob(input: {
     }`,
     { input: body }
   );
+  } catch (e) {
+    if (input.creationContext?.ledgerId) {
+      await markCanaryReconciliation({
+        kind: "job",
+        ledgerId: input.creationContext.ledgerId,
+        message: e instanceof Error ? e.message : "job mutation failed",
+      });
+    }
+    throw e;
+  }
   const err = data.jobCreate.userErrors?.[0];
-  if (err) throw new Error(err.message);
+  if (err) {
+    if (input.creationContext?.ledgerId) {
+      await markCanaryReconciliation({
+        kind: "job",
+        ledgerId: input.creationContext.ledgerId,
+        message: err.message,
+      });
+    }
+    throw new Error(err.message);
+  }
   const id = data.jobCreate.job.id;
-  recordCreationCanaryWrite({ kind: "job", providerId: id });
+  if (input.creationContext?.ledgerId) {
+    await completeCanarySlot({
+      kind: "job",
+      ledgerId: input.creationContext.ledgerId,
+      providerId: id,
+    });
+  }
   return id;
 }
 

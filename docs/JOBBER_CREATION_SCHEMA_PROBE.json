@@ -1,0 +1,239 @@
+{
+  "probedAt": "2026-11-17T13:13:43.640Z",
+  "graphqlVersion": "2025-01-20",
+  "accountId": "Z2lkOi8vSm9iYmVyL0FjY291bnQvMjQ1MDQ1",
+  "grantedScopes": [],
+  "hasJobCreate": true,
+  "hasClientCreate": true,
+  "jobCreateType": {
+    "name": "JobCreatePayload",
+    "kind": "OBJECT",
+    "inputFields": null,
+    "fields": [
+      {
+        "name": "job",
+        "type": {
+          "kind": "OBJECT",
+          "name": "Job"
+        }
+      },
+      {
+        "name": "userErrors",
+        "type": {
+          "kind": "NON_NULL",
+          "name": null
+        }
+      }
+    ]
+  },
+  "clientCreateType": {
+    "name": "ClientCreatePayload",
+    "kind": "OBJECT",
+    "inputFields": null,
+    "fields": [
+      {
+        "name": "client",
+        "type": {
+          "kind": "OBJECT",
+          "name": "Client"
+        }
+      },
+      {
+        "name": "userErrors",
+        "type": {
+          "kind": "NON_NULL",
+          "name": null
+        }
+      }
+    ]
+  },
+  "jobCreateInput": null,
+  "clientCreateInput": {
+    "name": "ClientCreateInput",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "title",
+        "type": {
+          "kind": "ENUM",
+          "name": "ClientTitle",
+          "ofType": null
+        }
+      },
+      {
+        "name": "firstName",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        }
+      },
+      {
+        "name": "lastName",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        }
+      },
+      {
+        "name": "companyName",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        }
+      },
+      {
+        "name": "isCompany",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "receivesReminders",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "receivesFollowUps",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "receivesQuoteFollowUps",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "receivesInvoiceFollowUps",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "receivesReviewRequests",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "phones",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "NON_NULL",
+            "name": null,
+            "ofType": {
+              "kind": "INPUT_OBJECT",
+              "name": "PhoneNumberCreateAttributes"
+            }
+          }
+        }
+      },
+      {
+        "name": "emails",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "NON_NULL",
+            "name": null,
+            "ofType": {
+              "kind": "INPUT_OBJECT",
+              "name": "EmailCreateAttributes"
+            }
+          }
+        }
+      },
+      {
+        "name": "properties",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "NON_NULL",
+            "name": null,
+            "ofType": {
+              "kind": "INPUT_OBJECT",
+              "name": "PropertyAttributes"
+            }
+          }
+        }
+      },
+      {
+        "name": "billingAddress",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "AddressAttributes",
+          "ofType": null
+        }
+      },
+      {
+        "name": "customFields",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "NON_NULL",
+            "name": null,
+            "ofType": {
+              "kind": "INPUT_OBJECT",
+              "name": "CustomFieldCreateInput"
+            }
+          }
+        }
+      },
+      {
+        "name": "sourceAttribution",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "SourceAttributionAttributes",
+          "ofType": null
+        }
+      },
+      {
+        "name": "contacts",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "NON_NULL",
+            "name": null,
+            "ofType": {
+              "kind": "INPUT_OBJECT",
+              "name": "ContactCreateAttributes"
+            }
+          }
+        }
+      }
+    ],
+    "fields": null
+  },
+  "implementationNote": "syncbridge/src/lib/jobber/ops.ts uses clientCreate(ClientCreateInput) and jobCreate(JobCreateInput) with clientId/title/propertyId",
+  "version": "2026-11-03",
+  "jobCreateInputType": "JobCreateAttributes",
+  "payloadFields": [
+    "job",
+    "userErrors"
+  ],
+  "probedVersions": {
+    "primary": "2026-11-03"
+  }
+}

@@ -42,16 +42,16 @@ export function pilotAllows(opts: {
   creatingGhlOpportunity?: boolean;
   creationCanaryRequestKey?: string | null;
 }): boolean {
+  if (opts.creatingJobberClient || opts.creatingJobberJob) {
+    return creationCanaryAllowsProviderCreate({
+      ghlContactId: opts.ghlContactId,
+      serviceRequestKey: opts.creationCanaryRequestKey,
+      kind: opts.creatingJobberClient ? "client" : "job",
+    });
+  }
   if (existingRecordsOnly()) {
     if (opts.creatingGhlContact || opts.creatingGhlOpportunity) {
       return false;
-    }
-    if (opts.creatingJobberClient || opts.creatingJobberJob) {
-      return creationCanaryAllowsProviderCreate({
-        ghlContactId: opts.ghlContactId,
-        serviceRequestKey: opts.creationCanaryRequestKey,
-        kind: opts.creatingJobberClient ? "client" : "job",
-      });
     }
   }
   if (canWriteToProviders()) return true;

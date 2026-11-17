@@ -148,4 +148,4 @@ export function planServiceRequest(opts: {
 }
 
 export const JOBBER_JOB_CREATE_LIMITATION =
-  "JobCreateInput schema is account-specific and unproven in production GraphQL introspection; jobs are created with clientId/title only — no automatic visit or availability reservation.";
+  "Live introspection (2026-11-03): jobCreate(input: JobCreateAttributes) requires propertyId; clientId is not a field. Associate client via an existing client property — no visit/scheduling fields are set.";

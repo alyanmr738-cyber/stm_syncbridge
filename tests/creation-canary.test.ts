@@ -5,10 +5,14 @@ import {
   assertProviderCreateAllowed,
   creationCanaryAllowsProviderCreate,
   creationCanaryMatchesRequest,
-  getCreationCanaryLedger,
-  recordCreationCanaryWrite,
   resetCreationCanaryLedgerForTests,
 } from "@/lib/config/creation-canary";
+import {
+  completeCanarySlot,
+  getOrCreateCanaryLedger,
+  reserveCanarySlot,
+  resetCreationLedgerForTests,
+} from "@/lib/sync/creation-ledger";
 import { pilotAllows } from "@/lib/config/pilot";
 
 const prev = { ...process.env };
@@ -36,6 +40,8 @@ describe("creation canary allowlist", () => {
     process.env = prev;
     resetEnvCacheForTests();
     resetCreationCanaryLedgerForTests();
+    resetCreationLedgerForTests();
+    process.env.CREATION_LEDGER_MEMORY = "true";
   });
 
   it("matches only the designated contact and request", () => {
@@ -53,37 +59,32 @@ describe("creation canary allowlist", () => {
     ).toBe(false);
   });
 
-  it("exhausts budget after one client and one job", () => {
-    expect(
-      creationCanaryAllowsProviderCreate({
-        ghlContactId: "canary-contact-1",
-        serviceRequestKey: "req-live-001",
-        kind: "client",
-      })
-    ).toBe(true);
-    recordCreationCanaryWrite({ kind: "client", providerId: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x" });
-    expect(
-      creationCanaryAllowsProviderCreate({
-        ghlContactId: "canary-contact-1",
-        serviceRequestKey: "req-live-001",
-        kind: "client",
-      })
-    ).toBe(false);
-    expect(getCreationCanaryLedger().clientsCreated).toBe(1);
-    assertProviderCreateAllowed({
-      operation: "test.job",
+  it("exhausts budget after one client and one job in ledger", async () => {
+    const ledger = await getOrCreateCanaryLedger({
       ghlContactId: "canary-contact-1",
       serviceRequestKey: "req-live-001",
-      kind: "job",
     });
-    recordCreationCanaryWrite({ kind: "job", providerId: "Z2lkOi8vSm9iYmVyL0pvYi8x" });
-    expect(
-      creationCanaryAllowsProviderCreate({
+    expect(ledger?.id).toBeTruthy();
+    await reserveCanarySlot({ kind: "client", ledgerId: ledger!.id, owner: "t" });
+    await completeCanarySlot({
+      kind: "client",
+      ledgerId: ledger!.id,
+      providerId: "Z2lkOi8vSm9iYmVyL0NsaWVudC8x",
+    });
+    await reserveCanarySlot({ kind: "job", ledgerId: ledger!.id, owner: "t" });
+    await completeCanarySlot({
+      kind: "job",
+      ledgerId: ledger!.id,
+      providerId: "Z2lkOi8vSm9iYmVyL0pvYi8x",
+    });
+    await expect(
+      assertProviderCreateAllowed({
+        operation: "test.job2",
         ghlContactId: "canary-contact-1",
         serviceRequestKey: "req-live-001",
         kind: "job",
       })
-    ).toBe(false);
+    ).rejects.toThrow();
   });
 
   it("blocks unrelated production writes via pilot when creation is off globally", () => {

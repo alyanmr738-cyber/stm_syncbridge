@@ -31,8 +31,11 @@ vi.mock("@/lib/jobber/ops", async () => {
       writes.push("jobCreate");
       return "Z2lkOi8vSm9iYmVyL0pvYi85OTk=";
     }),
-    fetchJobberClient: vi.fn(),
     searchJobberClients: vi.fn(async () => []),
+    fetchJobberClient: vi.fn(async () => ({
+      id: "Z2lkOi8vSm9iYmVyL0NsaWVudC85OTk=",
+      clientProperties: { nodes: [{ id: "Z2lkOi8vSm9iYmVyL1Byb3BlcnR5LzE=" }] },
+    })),
   };
 });
 
@@ -60,6 +63,7 @@ describe("syncServiceRequest handler", () => {
   beforeEach(() => {
     writes.length = 0;
     resetCreationCanaryLedgerForTests();
+    process.env.CREATION_LEDGER_MEMORY = "true";
     process.env = {
       ...prev,
       SYNC_ENABLED: "true",
@@ -93,6 +97,7 @@ describe("syncServiceRequest handler", () => {
     process.env.CREATION_CANARY_NOT_BEFORE = "2020-01-01T00:00:00.000Z";
     process.env.CREATION_CANARY_NOT_AFTER = "2099-01-01T00:00:00.000Z";
     process.env.CREATION_CANARY_ALLOW_NEW_CLIENT = "true";
+    process.env.CREATION_LEDGER_MEMORY = "true";
     resetEnvCacheForTests();
 
     const outcome = await syncServiceRequest(
