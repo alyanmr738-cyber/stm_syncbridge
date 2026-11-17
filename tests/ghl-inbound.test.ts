@@ -32,6 +32,16 @@ describe("parseGhlWebhookPayload (workflow / custom webhook)", () => {
     expect(p.providerEventKey).toBe("ghl:ContactUpdate:ct-1:exec-abc");
   });
 
+  it("classifies service request when serviceRequestId present", () => {
+    const p = parseGhlWebhookPayload({
+      type: "Lead",
+      contactId: "ct-svc",
+      serviceRequestId: "req-100",
+    });
+    expect(p.eventKind).toBe("ServiceRequest");
+    expect(p.providerEventKey).toBe("ghl:ServiceRequest:ct-svc");
+  });
+
   it("reads nested contact object", () => {
     const p = parseGhlWebhookPayload({
       locationId: "loc-1",

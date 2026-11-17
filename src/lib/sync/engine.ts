@@ -14,6 +14,8 @@ import {
   syncJobberClient,
   syncJobberJob,
   syncQuoteOrInvoice,
+  syncServiceRequest,
+  CreationCanaryClosedError,
   type LoadedEvent,
 } from "@/lib/sync/handlers";
 
@@ -59,6 +61,8 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<Proces
     let outcome: ProcessOutcome = "write_not_recorded";
     if (/CLIENT_CREATE|CLIENT_UPDATE|CLIENT\.CREATE|CLIENT\.UPDATE/.test(kind) && event.source === "jobber") {
       outcome = await syncJobberClient(event);
+    } else if (/SERVICE.?REQUEST|SERVICEREQUEST/.test(kind) && event.source === "ghl") {
+      outcome = await syncServiceRequest(event);
     } else if (/CONTACT|CUSTOMER/.test(kind) && event.source === "ghl") {
       outcome = await syncGhlContact(event);
     } else if (/APPOINTMENT|BOOKING/.test(kind) && event.source !== "jobber") {
@@ -83,8 +87,17 @@ export async function processSyncEvent(payload: QueueJobPayload): Promise<Proces
       await markSuppressed(payload.syncEventId, e.message, "suppressed_feature");
       return "suppressed_feature";
     }
+    if (e instanceof CreationCanaryClosedError) {
+      await markSuppressed(payload.syncEventId, e.message, "suppressed_feature");
+      return "suppressed_feature";
+    }
     if (e instanceof GateClosedError) {
       await markSuppressed(payload.syncEventId, e.message, "suppressed_feature");
+      if (/SERVICE.?REQUEST|SERVICEREQUEST/.test(kind) && event.source === "ghl") {
+        const srOutcome = await syncServiceRequest(event);
+        await recordOutcome(payload.syncEventId, srOutcome);
+        return srOutcome;
+      }
       if (/APPOINTMENT|BOOKING/.test(kind) && event.source !== "jobber") {
         const bookingOutcome = await syncBooking(event);
         await recordOutcome(payload.syncEventId, bookingOutcome);

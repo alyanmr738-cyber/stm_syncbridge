@@ -1,3 +1,7 @@
+import {
+  assertProviderCreateAllowed,
+  recordCreationCanaryWrite,
+} from "@/lib/config/creation-canary";
 import { jobberGraphql } from "@/lib/jobber/graphql";
 
 export type JobberProperty = {
@@ -114,7 +118,20 @@ export async function createJobberClient(input: {
   lastName?: string;
   email?: string;
   phone?: string;
+  creationContext?: {
+    operation: string;
+    ghlContactId?: string;
+    serviceRequestKey?: string;
+  };
 }): Promise<string> {
+  if (input.creationContext) {
+    assertProviderCreateAllowed({
+      operation: input.creationContext.operation,
+      ghlContactId: input.creationContext.ghlContactId,
+      serviceRequestKey: input.creationContext.serviceRequestKey,
+      kind: "client",
+    });
+  }
   const data = await jobberGraphql<{
     clientCreate: { client: { id: string }; userErrors: { message: string }[] };
   }>(
@@ -135,7 +152,53 @@ export async function createJobberClient(input: {
   );
   const err = data.clientCreate.userErrors?.[0];
   if (err) throw new Error(err.message);
-  return data.clientCreate.client.id;
+  const id = data.clientCreate.client.id;
+  recordCreationCanaryWrite({ kind: "client", providerId: id });
+  return id;
+}
+
+export async function createJobberJob(input: {
+  clientId: string;
+  title: string;
+  propertyId?: string;
+  creationContext?: {
+    operation: string;
+    ghlContactId?: string;
+    serviceRequestKey?: string;
+  };
+}): Promise<string> {
+  if (!isJobberEncodedId(input.clientId)) {
+    throw new Error("Invalid Jobber client id");
+  }
+  if (input.creationContext) {
+    assertProviderCreateAllowed({
+      operation: input.creationContext.operation,
+      ghlContactId: input.creationContext.ghlContactId,
+      serviceRequestKey: input.creationContext.serviceRequestKey,
+      kind: "job",
+    });
+  }
+  const body: Record<string, unknown> = {
+    clientId: input.clientId,
+    title: input.title,
+  };
+  if (input.propertyId) body.propertyId = input.propertyId;
+  const data = await jobberGraphql<{
+    jobCreate: { job: { id: string }; userErrors: { message: string }[] };
+  }>(
+    `mutation JobCreate($input: JobCreateInput!) {
+      jobCreate(input: $input) {
+        job { id }
+        userErrors { message }
+      }
+    }`,
+    { input: body }
+  );
+  const err = data.jobCreate.userErrors?.[0];
+  if (err) throw new Error(err.message);
+  const id = data.jobCreate.job.id;
+  recordCreationCanaryWrite({ kind: "job", providerId: id });
+  return id;
 }
 
 export type JobberJobClient = {

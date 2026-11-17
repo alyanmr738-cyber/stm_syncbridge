@@ -96,6 +96,7 @@ export function featureFlagsSnapshot() {
     reviewTrigger: env.REVIEW_TRIGGER_ENABLED === true,
     emergencyAutoBook: env.EMERGENCY_AUTO_BOOK_ENABLED === true,
     allowRecordCreation: env.ALLOW_RECORD_CREATION === "true",
+    creationCanaryEnabled: env.CREATION_CANARY_ENABLED === true,
     gates: gateStatus(),
   };
 }

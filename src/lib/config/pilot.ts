@@ -1,4 +1,5 @@
 import { getEnv, parseIdAllowlist } from "@/lib/config/env";
+import { creationCanaryAllowsProviderCreate } from "@/lib/config/creation-canary";
 import { canWriteToProviders, GateClosedError } from "@/lib/config/feature-flags";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 
@@ -37,11 +38,20 @@ export function pilotAllows(opts: {
   ghlOpportunityId?: string | null;
   creatingGhlContact?: boolean;
   creatingJobberClient?: boolean;
+  creatingJobberJob?: boolean;
   creatingGhlOpportunity?: boolean;
+  creationCanaryRequestKey?: string | null;
 }): boolean {
   if (existingRecordsOnly()) {
-    if (opts.creatingGhlContact || opts.creatingJobberClient || opts.creatingGhlOpportunity) {
+    if (opts.creatingGhlContact || opts.creatingGhlOpportunity) {
       return false;
+    }
+    if (opts.creatingJobberClient || opts.creatingJobberJob) {
+      return creationCanaryAllowsProviderCreate({
+        ghlContactId: opts.ghlContactId,
+        serviceRequestKey: opts.creationCanaryRequestKey,
+        kind: opts.creatingJobberClient ? "client" : "job",
+      });
     }
   }
   if (canWriteToProviders()) return true;

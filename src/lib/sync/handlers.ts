@@ -1,6 +1,10 @@
 import type { ProcessOutcome } from "@/lib/display/process-outcome";
 import { getEnv } from "@/lib/config/env";
 import { GateClosedError } from "@/lib/config/feature-flags";
+import {
+  CreationCanaryClosedError,
+  creationCanaryAllowsProviderCreate,
+} from "@/lib/config/creation-canary";
 import { assertPilotWrite } from "@/lib/config/pilot";
 import { STM_GHL } from "@/lib/config/stm-mapping";
 import {
@@ -14,6 +18,8 @@ import {
   upsertGhlContact,
 } from "@/lib/ghl/rest";
 import {
+  createJobberClient,
+  createJobberJob,
   createJobberNote,
   editJobberClient,
   fetchJobberClient,
@@ -39,6 +45,12 @@ import {
   upsertCustomerLink,
   upsertJobLink,
 } from "@/lib/sync/match-store";
+import {
+  parseServiceRequestPayload,
+  planServiceRequest,
+  type ServiceRequestPlan,
+} from "@/lib/sync/service-request";
+import { transitionBookingState } from "@/lib/sync/booking-workflow";
 
 export type LoadedEvent = {
   id: string;
@@ -655,6 +667,274 @@ export async function syncQuoteOrInvoice(
   return ghlNoteId ? "provider_write" : "local_state_only";
 }
 
+function serviceRequestTitle(parsed: NonNullable<ReturnType<typeof parseServiceRequestPayload>>) {
+  const svc = parsed.serviceKey ?? "Service request";
+  return `GHL: ${svc}`.slice(0, 120);
+}
+
+async function resolveCustomerForServiceRequest(
+  contactId: string
+): Promise<
+  | {
+      kind: "linked";
+      customerLinkId: string;
+      verified: boolean;
+      jobberClientId?: string;
+    }
+  | { kind: "provider"; jobberClientId?: string; ghlContactId?: string }
+  | { kind: "create" }
+  | { kind: "ambiguous"; candidateIds: string[] }
+> {
+  const contact = await getGhlContact(contactId);
+  const email = normalizeEmail(contact?.email);
+  const phone = normalizePhone(contact?.phone);
+  const supabase = getSupabaseAdmin();
+  const { data: linkRow } = supabase
+    ? await supabase
+        .from("customer_links")
+        .select("id, jobber_client_id, verified")
+        .eq("ghl_contact_id", contactId)
+        .maybeSingle()
+    : { data: null };
+  if (linkRow?.id) {
+    return {
+      kind: "linked",
+      customerLinkId: linkRow.id,
+      verified: linkRow.verified === true,
+      jobberClientId: (linkRow.jobber_client_id as string | null) ?? undefined,
+    };
+  }
+  const decision = await matchCustomer({ ghlContactId: contactId, email, phone });
+  if (decision.kind === "linked") {
+    const linked = supabase
+      ? await supabase
+          .from("customer_links")
+          .select("id, jobber_client_id, verified")
+          .eq("id", decision.customerLinkId)
+          .maybeSingle()
+      : { data: null };
+    return {
+      kind: "linked",
+      customerLinkId: decision.customerLinkId,
+      verified: linked.data?.verified === true,
+      jobberClientId: (linked.data?.jobber_client_id as string | null) ?? undefined,
+    };
+  }
+  if (decision.kind === "ambiguous") {
+    return { kind: "ambiguous", candidateIds: decision.candidateIds };
+  }
+  if (decision.kind === "provider") {
+    return {
+      kind: "provider",
+      jobberClientId: decision.jobberClientId,
+      ghlContactId: decision.ghlContactId,
+    };
+  }
+  return { kind: "create" };
+}
+
+async function persistServiceRequestAudit(opts: {
+  eventId: string;
+  contactId: string;
+  serviceRequestKey: string;
+  plan: ServiceRequestPlan;
+  jobberClientId?: string;
+  jobberJobId?: string;
+  bookingState: string;
+}): Promise<void> {
+  await upsertJobLink({
+    ghl_opportunity_id: undefined,
+    source_booking_key: opts.serviceRequestKey,
+    jobber_job_id: opts.jobberJobId,
+    last_job_status: opts.bookingState,
+  });
+  await openConflict({
+    eventId: opts.eventId,
+    entityType: "service_request",
+    entityId: opts.serviceRequestKey,
+    reason: opts.bookingState,
+    details: {
+      ghlContactId: opts.contactId,
+      plan: opts.plan.action,
+      jobberClientId: opts.jobberClientId,
+      jobberJobId: opts.jobberJobId,
+    },
+  });
+}
+
+export async function syncServiceRequest(event: LoadedEvent): Promise<ProcessOutcome> {
+  const parsed = parseServiceRequestPayload(event.payload);
+  if (!parsed) return "no_change";
+
+  const existingLink = await findJobLink({ bookingKey: parsed.serviceRequestKey });
+  if (existingLink?.jobber_job_id) {
+    return "no_change";
+  }
+
+  const match = await resolveCustomerForServiceRequest(parsed.contactId);
+  const plan = planServiceRequest({
+    parsed,
+    match,
+    existingJobLinkId: existingLink?.id as string | undefined,
+    verifiedJobberClientId: match.kind === "linked" ? match.jobberClientId : undefined,
+  });
+
+  if (plan.action === "duplicate") return "no_change";
+
+  if (plan.action === "blocked_ambiguous") {
+    await openConflict({
+      eventId: event.id,
+      entityType: "customer",
+      entityId: parsed.contactId,
+      reason: plan.reason,
+      details: { candidateIds: plan.candidateIds, serviceRequestKey: parsed.serviceRequestKey },
+    });
+    return "blocked_unverified";
+  }
+
+  if (plan.action === "blocked_unverified" || plan.action === "pending_review") {
+    await persistServiceRequestAudit({
+      eventId: event.id,
+      contactId: parsed.contactId,
+      serviceRequestKey: parsed.serviceRequestKey,
+      plan,
+      bookingState: "pending_jobber_confirmation",
+    });
+    return "blocked_unverified";
+  }
+
+  if (plan.action === "additional_visit") {
+    await upsertJobLink({
+      source_booking_key: parsed.serviceRequestKey,
+      jobber_job_id: plan.jobberJobId,
+      last_job_status: "additional_visit",
+    });
+    return "local_state_only";
+  }
+
+  const canCreateClient =
+    plan.action === "create_client_then_job" &&
+    creationCanaryAllowsProviderCreate({
+      ghlContactId: parsed.contactId,
+      serviceRequestKey: parsed.serviceRequestKey,
+      kind: "client",
+    });
+
+  const canCreateJob =
+    (plan.action === "reuse_existing_client" && plan.createJob) ||
+    (plan.action === "create_client_then_job" && plan.createJob);
+
+  const jobberWriteAllowed =
+    canCreateJob &&
+    creationCanaryAllowsProviderCreate({
+      ghlContactId: parsed.contactId,
+      serviceRequestKey: parsed.serviceRequestKey,
+      kind: "job",
+    });
+
+  if (!jobberWriteAllowed && !canCreateClient) {
+    const bookingState = transitionBookingState("received", "admin_confirm");
+    await persistServiceRequestAudit({
+      eventId: event.id,
+      contactId: parsed.contactId,
+      serviceRequestKey: parsed.serviceRequestKey,
+      plan,
+      bookingState,
+    });
+    return "local_state_only";
+  }
+
+  let jobberClientId: string | undefined =
+    plan.action === "reuse_existing_client" ? plan.jobberClientId : undefined;
+
+  try {
+    if (!jobberClientId && plan.action === "create_client_then_job" && canCreateClient) {
+      const contact = await getGhlContact(parsed.contactId);
+      assertPilotWrite("ghl.service_request.create_client", {
+        ghlContactId: parsed.contactId,
+        creatingJobberClient: true,
+        creationCanaryRequestKey: parsed.serviceRequestKey,
+      });
+      jobberClientId = await createJobberClient({
+        firstName: contact?.firstName ?? undefined,
+        lastName: contact?.lastName ?? undefined,
+        email: contact?.email ?? undefined,
+        phone: contact?.phone ?? undefined,
+        creationContext: {
+          operation: "ghl.service_request.create_client",
+          ghlContactId: parsed.contactId,
+          serviceRequestKey: parsed.serviceRequestKey,
+        },
+      });
+      await upsertCustomerLink({
+        jobber_client_id: jobberClientId,
+        ghl_contact_id: parsed.contactId,
+        match_method: "service_request_canary_create",
+        verified: true,
+      });
+    }
+
+    if (!jobberClientId) {
+      await persistServiceRequestAudit({
+        eventId: event.id,
+        contactId: parsed.contactId,
+        serviceRequestKey: parsed.serviceRequestKey,
+        plan,
+        bookingState: "pending_jobber_confirmation",
+      });
+      return "local_state_only";
+    }
+
+    let jobberJobId: string | undefined;
+    if (jobberWriteAllowed) {
+      assertPilotWrite("ghl.service_request.create_job", {
+        ghlContactId: parsed.contactId,
+        jobberClientId,
+        creatingJobberJob: true,
+        creationCanaryRequestKey: parsed.serviceRequestKey,
+      });
+      jobberJobId = await createJobberJob({
+        clientId: jobberClientId,
+        title: serviceRequestTitle(parsed),
+        creationContext: {
+          operation: "ghl.service_request.create_job",
+          ghlContactId: parsed.contactId,
+          serviceRequestKey: parsed.serviceRequestKey,
+        },
+      });
+    }
+
+    await upsertJobLink({
+      jobber_job_id: jobberJobId,
+      source_booking_key: parsed.serviceRequestKey,
+      ghl_opportunity_id: parsed.ghlOpportunityId,
+      last_job_status: "pending_jobber_confirmation",
+    });
+
+    if (jobberJobId) {
+      await upsertGhlContact({
+        id: parsed.contactId,
+        jobberClientId,
+      });
+      return "provider_write";
+    }
+    return "local_state_only";
+  } catch (e) {
+    if (e instanceof CreationCanaryClosedError) throw e;
+    await openConflict({
+      eventId: event.id,
+      entityType: "service_request",
+      entityId: parsed.serviceRequestKey,
+      reason: "provider_write_failed",
+      details: {
+        message: e instanceof Error ? e.message.slice(0, 200) : "unknown",
+        jobberClientId,
+      },
+    });
+    return "blocked_unverified";
+  }
+}
+
 export async function syncAiSummary(event: LoadedEvent): Promise<ProcessOutcome> {
   const env = getEnv();
   if (!env.AI_SUMMARY_SYNC_ENABLED) return "no_change";
@@ -693,4 +973,4 @@ export async function syncAiSummary(event: LoadedEvent): Promise<ProcessOutcome>
   return "provider_write";
 }
 
-export { GateClosedError };
+export { CreationCanaryClosedError, GateClosedError };
