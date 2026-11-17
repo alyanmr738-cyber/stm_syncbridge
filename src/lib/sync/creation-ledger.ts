@@ -52,7 +52,7 @@ export function resetCreationLedgerForTests(): void {
   };
 }
 
-function useMemory(): boolean {
+function isMemoryLedgerBackend(): boolean {
   return !getSupabaseAdmin() || process.env.CREATION_LEDGER_MEMORY === "true";
 }
 
@@ -98,7 +98,7 @@ export async function getOrCreateCanaryLedger(opts: {
 }): Promise<LedgerRow | null> {
   if (!canaryConfigAuthorizes(opts)) return null;
 
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const m = mem();
     const existing = m.ledgers.get(opts.serviceRequestKey);
     if (existing) return existing;
@@ -164,7 +164,7 @@ export async function reserveCanarySlot(opts: {
   ledgerId: string;
   owner: string;
 }): Promise<boolean> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const m = mem();
     const slot = m.slots[opts.kind];
     if (slot.jobber_provider_id) return false;
@@ -201,7 +201,7 @@ export async function markSlotCreating(opts: {
   ledgerId: string;
   owner: string;
 }): Promise<boolean> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const m = mem();
     const slot = m.slots[opts.kind];
     if (slot.ledger_id !== opts.ledgerId) return false;
@@ -226,7 +226,7 @@ export async function completeCanarySlot(opts: {
   ledgerId: string;
   providerId: string;
 }): Promise<boolean> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const m = mem();
     const slot = m.slots[opts.kind];
     slot.write_state = "created";
@@ -260,7 +260,7 @@ export async function markCanaryReconciliation(opts: {
   message: string;
 }): Promise<void> {
   const state: CanaryWriteState = "reconciliation_required";
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const m = mem();
     m.slots[opts.kind].write_state = state;
     const row = [...m.ledgers.values()].find((r) => r.id === opts.ledgerId);
@@ -296,7 +296,7 @@ export async function slotAllowsCreate(opts: {
   kind: "client" | "job";
   ledgerId: string;
 }): Promise<boolean> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const slot = mem().slots[opts.kind];
     return (
       slot.ledger_id === opts.ledgerId &&
@@ -321,7 +321,7 @@ export async function slotAllowsCreate(opts: {
 export async function getLedgerByRequestKey(
   serviceRequestKey: string
 ): Promise<LedgerRow | null> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     return mem().ledgers.get(serviceRequestKey) ?? null;
   }
   const supabase = getSupabaseAdmin()!;
@@ -334,7 +334,7 @@ export async function getLedgerByRequestKey(
 }
 
 export async function canaryBudgetAvailable(kind: "client" | "job"): Promise<boolean> {
-  if (useMemory()) {
+  if (isMemoryLedgerBackend()) {
     const slot = mem().slots[kind];
     return !slot.jobber_provider_id && slot.write_state === "available";
   }
